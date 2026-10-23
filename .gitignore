@@ -1,0 +1,27 @@
+# New STM32/Keil output artifacts; existing tracked files remain tracked.
+# Never ignore firmware sources (.c/.h/.s), CubeMX config (.ioc), or Keil projects (.uvprojx).
+*.o
+*.d
+*.crf
+*.dep
+*.lnp
+*.axf
+*.map
+*.lst
+*.htm
+*.hex
+*.bin
+*.elf
+*.log
+*.bak
+*.tmp
+*.uvguix.*
+*.uvoptx
+*.uvopt
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+
+# Be careful: PCB backup files may have unusual extensions.
+# Preserve existing .eprj_backup, .eprj2, .epro, .step, .3mf and BOM documents.
