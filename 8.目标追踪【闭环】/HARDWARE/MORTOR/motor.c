@@ -76,11 +76,11 @@ void MotorCtrl_Init(MotorCtrl_TypeDef *mc, Motor_HandleTypeDef *hw)
     mc->current_step = 0;
     mc->home_steps = 0;
     mc->next_pulse_tick = 0;
-    // ¿É½«7000¼õÐ¡ÖÁ6000£¬Ôö´ó³õÊ¼ËÙ¶È
+    // å¯å°†7000å‡å°è‡³6000ï¼Œå¢žå¤§åˆå§‹é€Ÿåº¦
     mc->pulse_delay = 7000;
     mc->target_delay = 7000;
     mc->accel_rate = 0;
-    mc->last_accel_time = 0; // ³õÊ¼»¯¶ÀÁ¢Ê±¼ä´Á
+    mc->last_accel_time = 0; // åˆå§‹åŒ–ç‹¬ç«‹æ—¶é—´æˆ³
     mc->is_running = 0;
     Motor_Enable(hw);
 }
@@ -110,9 +110,9 @@ void MotorCtrl_SetTarget(MotorCtrl_TypeDef *mc, float circles, uint16_t delay_us
     
     
     if (mc->pulse_delay > mc->target_delay) {
-        mc->accel_rate = -2; // Ã¿ºÁÃë¼ÓËÙ2us
+        mc->accel_rate = -2; // æ¯æ¯«ç§’åŠ é€Ÿ2us
     } else if (mc->pulse_delay < mc->target_delay) {
-        mc->accel_rate = 2;  // Ã¿ºÁÃë¼õËÙ2us
+        mc->accel_rate = 2;  // æ¯æ¯«ç§’å‡é€Ÿ2us
     } else {
         mc->accel_rate = 0;
     }
@@ -160,7 +160,7 @@ void MotorCtrl_Update(MotorCtrl_TypeDef *mc)
 {
     uint32_t now = DWT_GetTickUs();
     
-    // Ã¿1msµ÷ÕûÒ»´ÎËÙ¶È£¨ºã¶¨¼ÓËÙ¶È£©
+    // æ¯1msè°ƒæ•´ä¸€æ¬¡é€Ÿåº¦ï¼ˆæ’å®šåŠ é€Ÿåº¦ï¼‰
     if (now - mc->last_accel_time >= 1000) {
         mc->last_accel_time = now;
         
@@ -213,6 +213,6 @@ float MotorCtrl_GetCircles(MotorCtrl_TypeDef *mc)
 
 uint8_t MotorCtrl_IsRunning(MotorCtrl_TypeDef *mc)
 {
-    // Í£Ö¹ÅÐ¶ÏãÐÖµ
+    // åœæ­¢åˆ¤æ–­é˜ˆå€¼
     return mc->is_running || (mc->pulse_delay < 8000);
 }

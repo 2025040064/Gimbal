@@ -8,8 +8,8 @@
 #define M_PI 3.14159265358979323846f
 #define MPU6050_ADDR 0x68
 
-#define GYRO_SENSITIVITY  131.0f    /* ¡À250¡ã/s */
-#define ACC_SENSITIVITY   16384.0f  /* ¡À2g */
+#define GYRO_SENSITIVITY  131.0f    /* Â±250Â°/s */
+#define ACC_SENSITIVITY   16384.0f  /* Â±2g */
 
 typedef struct {
     int16_t acc_x;

@@ -1,0 +1,102 @@
+{
+  "createdAt": "2026-10-25T06:35:25.082Z",
+  "note": "GBK/GB2312 -> UTF-8 (no BOM) 原始文件备份",
+  "files": [
+    {
+      "path": "Core\\Src\\main.c",
+      "encoding": "GB2312",
+      "sha256": "e5398a56fc5cff4f4a3dc6dcb2a74e451d5ef3d5021367cef2887c257b6a5201",
+      "bytes": 2660
+    },
+    {
+      "path": "Core\\Src\\usart.c",
+      "encoding": "GB2312",
+      "sha256": "a4b227825afd6a24163797b399cddc809dc9f320b8355b854948f7e705adae13",
+      "bytes": 3278
+    },
+    {
+      "path": "HARDWARE\\APP\\app.c",
+      "encoding": "GB2312",
+      "sha256": "2a4893168268fbbc03bb53d1bdbba8dbe992f9c2363ea18d07de6d5599404650",
+      "bytes": 4706
+    },
+    {
+      "path": "HARDWARE\\APP\\app.h",
+      "encoding": "GB2312",
+      "sha256": "a79d2b6aabfaacad18e0f6d194c234cfec92d0c6f0b08a7207b0665e013c596c",
+      "bytes": 923
+    },
+    {
+      "path": "HARDWARE\\DWT_DELAY\\dwt_delay.h",
+      "encoding": "GB2312",
+      "sha256": "807eec5c843c18f1d10a9ffc276985d0240f7e25e64e30543d9c7a7f7e7b275b",
+      "bytes": 644
+    },
+    {
+      "path": "HARDWARE\\K230\\k230.c",
+      "encoding": "GB2312",
+      "sha256": "c87948048df61c00b131a068c18c80b41fc805b4afbef8c6ac65b9a484baa746",
+      "bytes": 3459
+    },
+    {
+      "path": "HARDWARE\\K230\\k230.h",
+      "encoding": "GB2312",
+      "sha256": "d3ff9c8effb4cbfdf89128d62d25dd2f6a00ee49263aae953dc0944e3ae7b1da",
+      "bytes": 387
+    },
+    {
+      "path": "HARDWARE\\MORTOR\\motor.c",
+      "encoding": "GB2312",
+      "sha256": "c5a7f3a90d2f8b0553fe075b68f7326efa2fa4ec245c03398a7bb0015f7fa0bc",
+      "bytes": 6571
+    },
+    {
+      "path": "HARDWARE\\MORTOR\\motor.h",
+      "encoding": "GB2312",
+      "sha256": "f84dafe782a272901a9851ba55f84b11c0132bf65ec27fa4ee520ae49dee7bd8",
+      "bytes": 1701
+    },
+    {
+      "path": "HARDWARE\\MPU6050\\mpu6050.c",
+      "encoding": "GB2312",
+      "sha256": "b6a047fdf3efeceebd2ba91249e7d383f4b387608afae632607e9d5a7a6a6684",
+      "bytes": 6090
+    },
+    {
+      "path": "HARDWARE\\MPU6050\\mpu6050.h",
+      "encoding": "GB2312",
+      "sha256": "03fcaab01165f24009bbe75b32bc71e20ac39a7702a7c0d4406ebb1566d9713d",
+      "bytes": 660
+    },
+    {
+      "path": "HARDWARE\\OLED\\bmp.h",
+      "encoding": "GB2312",
+      "sha256": "ceab77294c682432e499a8424c58f61a435d54d375a6159fa93131fcc23df77a",
+      "bytes": 5586
+    },
+    {
+      "path": "HARDWARE\\OLED\\oled.c",
+      "encoding": "GB2312 + 1 个 0xA3 字节",
+      "sha256": "a7ec2365dd7b26b1772dc9c043691dcfedf3c6714976d58dd1093630f518da69",
+      "bytes": 9799
+    },
+    {
+      "path": "HARDWARE\\OLED\\oled.h",
+      "encoding": "GB2312",
+      "sha256": "5b8f264e61ff07d6a24eb84e59612a37f48ab7e13adedf5443926cb50ae54bee",
+      "bytes": 3161
+    },
+    {
+      "path": "HARDWARE\\OLED\\oledfont.h",
+      "encoding": "GB2312",
+      "sha256": "088a0053623e5d2097b494114d2c810dd69284f903278a1721a423bf1895eee7",
+      "bytes": 15257
+    },
+    {
+      "path": "HARDWARE\\STABILIZER\\stabilizer.c",
+      "encoding": "GB2312",
+      "sha256": "4bbcc8ddda49a728a6568cd55ed29c8ef17e6932f357afee53b6e0d6f3c96a35",
+      "bytes": 6772
+    }
+  ]
+}

@@ -11,11 +11,11 @@
 #define MIN_DELAY           500
 #define STAB_PERIOD_MS      10
 
-/* ×·×Ù²ÎÊı */
-#define TRACK_DEADZONE      8       // ×·×ÙËÀÇø£¨ÏñËØ£©£¬ÊÊµ±Ôö´ó±ÜÃâ¶¶¶¯
-#define MAX_TRACK_DELAY     5500    // ×·×Ù×î´óÑÓ³Ù£¬¿ÉÔÚ´ËÎ¢µ÷
-#define TRACK_ACCEL_RATE    3       // ×·×Ù¼ÓËÙ¶È£¬±ÈÄ¬ÈÏ2ÉÔ¿ì£¬±È5¸üÈáºÍ
-#define ERROR_FILTER_COEF   0.25f   // Îó²îµÍÍ¨ÂË²¨ÏµÊı£¨0~1£©£¬Ô½Ğ¡Ô½Æ½»¬µ«ÏìÓ¦ÉÔÂı
+/* è¿½è¸ªå‚æ•° */
+#define TRACK_DEADZONE      8       // è¿½è¸ªæ­»åŒºï¼ˆåƒç´ ï¼‰ï¼Œé€‚å½“å¢å¤§é¿å…æŠ–åŠ¨
+#define MAX_TRACK_DELAY     5500    // è¿½è¸ªæœ€å¤§å»¶è¿Ÿï¼Œå¯åœ¨æ­¤å¾®è°ƒ
+#define TRACK_ACCEL_RATE    3       // è¿½è¸ªåŠ é€Ÿåº¦ï¼Œæ¯”é»˜è®¤2ç¨å¿«ï¼Œæ¯”5æ›´æŸ”å’Œ
+#define ERROR_FILTER_COEF   0.25f   // è¯¯å·®ä½é€šæ»¤æ³¢ç³»æ•°ï¼ˆ0~1ï¼‰ï¼Œè¶Šå°è¶Šå¹³æ»‘ä½†å“åº”ç¨æ…¢
 
 extern uint16_t joystick_x;
 extern uint16_t joystick_y;
@@ -29,14 +29,14 @@ extern uint8_t k230_data_valid;
 static uint8_t m1_was_running = 0, m2_was_running = 0;
 static uint32_t last_stab_time = 0;
 
-// Îó²îµÍÍ¨ÂË²¨×´Ì¬
+// è¯¯å·®ä½é€šæ»¤æ³¢çŠ¶æ€
 static float filtered_error_x = 0.0f;
 static float filtered_error_y = 0.0f;
 
 uint16_t motor1_delay_display = 80;
 uint16_t motor2_delay_display = 80;
 
-// Ò¡¸ËËÙ¶ÈÇúÏß£¨²»±ä£©
+// æ‘‡æ†é€Ÿåº¦æ›²çº¿ï¼ˆä¸å˜ï¼‰
 static uint16_t delay_from_joystick(int16_t offset) {
     uint16_t abs_off = abs(offset);
     if (abs_off < 20) {
@@ -49,16 +49,16 @@ static uint16_t delay_from_joystick(int16_t offset) {
 }
 
 /**
- * @brief  ¸ù¾İÏñËØÎó²î¼ÆËã×·×ÙÂö³åÑÓ³Ù£¨Èı´ÎÆ½»¬ÇúÏß£©
- * @param  error      ÏñËØÎó²î£¨¾ø¶ÔÖµ£©
- * @param  half_range Í¼Ïñ°ë¿í/°ë¸ß
- * @return Âö³åÑÓ³Ù(us)
+ * @brief  æ ¹æ®åƒç´ è¯¯å·®è®¡ç®—è¿½è¸ªè„‰å†²å»¶è¿Ÿï¼ˆä¸‰æ¬¡å¹³æ»‘æ›²çº¿ï¼‰
+ * @param  error      åƒç´ è¯¯å·®ï¼ˆç»å¯¹å€¼ï¼‰
+ * @param  half_range å›¾åƒåŠå®½/åŠé«˜
+ * @return è„‰å†²å»¶è¿Ÿ(us)
  */
 static uint16_t track_delay_from_error(int16_t error, int16_t half_range) {
     float norm = (float)abs(error) / (float)half_range;
     if (norm > 1.0f) norm = 1.0f;
 
-    // Èı´Î·½ÇúÏß£ºÎó²î´ó ¡ú delay Ğ¡£¨¸ßËÙ£©£»Îó²î½Ó½ü0 ¡ú delay ¼±¾çÔö´ó£¨Æ½»º¼õËÙ£©
+    // ä¸‰æ¬¡æ–¹æ›²çº¿ï¼šè¯¯å·®å¤§ â†’ delay å°ï¼ˆé«˜é€Ÿï¼‰ï¼›è¯¯å·®æ¥è¿‘0 â†’ delay æ€¥å‰§å¢å¤§ï¼ˆå¹³ç¼“å‡é€Ÿï¼‰
     float factor = (1.0f - norm) * (1.0f - norm) * (1.0f - norm);
     uint16_t delay = (uint16_t)(MIN_DELAY + (MAX_TRACK_DELAY - MIN_DELAY) * factor);
     
@@ -87,12 +87,12 @@ void Stabilizer_Update(void) {
                          !(target_x == -1 && target_y == -1 && target_w == -1 && target_h == -1);
 
     if (joystick_active) {
-        // Ò¡¸ËÄ£Ê½£¨×î¸ßÓÅÏÈ¼¶£©
-        // »Ö¸´Ò¡¸ËÕı³£¼ÓËÙ¶È
+        // æ‘‡æ†æ¨¡å¼ï¼ˆæœ€é«˜ä¼˜å…ˆçº§ï¼‰
+        // æ¢å¤æ‘‡æ†æ­£å¸¸åŠ é€Ÿåº¦
         motorCtrl1.accel_rate = 2;
         motorCtrl2.accel_rate = 2;
 
-        // --- µç»ú1£¨YÖá£© ---
+        // --- ç”µæœº1ï¼ˆYè½´ï¼‰ ---
         if (m1_was_running) {
             if (abs(dy) < DEADZONE - HYSTERESIS) {
                 motorCtrl1.is_running = 0;
@@ -111,7 +111,7 @@ void Stabilizer_Update(void) {
             MotorCtrl_SetSpeed(&motorCtrl1, delay, dir);
         }
 
-        // --- µç»ú2£¨XÖá£© ---
+        // --- ç”µæœº2ï¼ˆXè½´ï¼‰ ---
         if (m2_was_running) {
             if (abs(dx) < DEADZONE - HYSTERESIS) {
                 motorCtrl2.is_running = 0;
@@ -131,7 +131,7 @@ void Stabilizer_Update(void) {
         }
     }
     else if (has_target) {
-        // K230 Ä¿±ê×·×ÙÄ£Ê½
+        // K230 ç›®æ ‡è¿½è¸ªæ¨¡å¼
         if (screen_w == 0 || screen_h == 0) {
             motorCtrl1.is_running = 0;
             motorCtrl2.is_running = 0;
@@ -140,7 +140,7 @@ void Stabilizer_Update(void) {
             return;
         }
 
-        // ÉèÖÃ×·×Ù×¨ÓÃ¼ÓËÙ¶È
+        // è®¾ç½®è¿½è¸ªä¸“ç”¨åŠ é€Ÿåº¦
         motorCtrl1.accel_rate = TRACK_ACCEL_RATE;
         motorCtrl2.accel_rate = TRACK_ACCEL_RATE;
 
@@ -149,14 +149,14 @@ void Stabilizer_Update(void) {
         int16_t raw_error_x = target_x - center_x;
         int16_t raw_error_y = target_y - center_y;
 
-        // Ò»½×µÍÍ¨ÂË²¨£¬È¥³ı¸ßÆµ¶¶¶¯
+        // ä¸€é˜¶ä½é€šæ»¤æ³¢ï¼Œå»é™¤é«˜é¢‘æŠ–åŠ¨
         filtered_error_x = ERROR_FILTER_COEF * raw_error_x + (1.0f - ERROR_FILTER_COEF) * filtered_error_x;
         filtered_error_y = ERROR_FILTER_COEF * raw_error_y + (1.0f - ERROR_FILTER_COEF) * filtered_error_y;
 
         int16_t error_x = (int16_t)filtered_error_x;
         int16_t error_y = (int16_t)filtered_error_y;
 
-        // --- µç»ú2£¨XÖá×·×Ù£©---
+        // --- ç”µæœº2ï¼ˆXè½´è¿½è¸ªï¼‰---
         if (abs(error_x) > TRACK_DEADZONE) {
             uint16_t delay = track_delay_from_error(error_x, center_x);
             motor2_delay_display = delay / 100;
@@ -171,7 +171,7 @@ void Stabilizer_Update(void) {
             }
         }
 
-        // --- µç»ú1£¨YÖá×·×Ù£©---
+        // --- ç”µæœº1ï¼ˆYè½´è¿½è¸ªï¼‰---
         if (abs(error_y) > TRACK_DEADZONE) {
             uint16_t delay = track_delay_from_error(error_y, center_y);
             motor1_delay_display = delay / 100;
@@ -187,7 +187,7 @@ void Stabilizer_Update(void) {
         }
     }
     else {
-        // ÎŞÒ¡¸ËÇÒÎŞÄ¿±ê ¡ú Í£Ö¹
+        // æ— æ‘‡æ†ä¸”æ— ç›®æ ‡ â†’ åœæ­¢
         if (m1_was_running || motorCtrl1.is_running) {
             motorCtrl1.is_running = 0;
             m1_was_running = 0;

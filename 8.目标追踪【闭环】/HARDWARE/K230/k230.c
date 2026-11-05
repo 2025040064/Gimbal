@@ -8,7 +8,7 @@ extern void MX_USART3_UART_Init(void);
 extern uint8_t k230_data_valid;
 
 #define RX_BUF_SIZE         64
-#define K230_TIMEOUT_MS     500   // ³¬Ê±Ê±¼ä£º³¬¹ı´ËÊ±¼äÎ´ÊÕµ½Ö¡¼´ÈÏÎªÎŞÊı¾İ
+#define K230_TIMEOUT_MS     500   // è¶…æ—¶æ—¶é—´ï¼šè¶…è¿‡æ­¤æ—¶é—´æœªæ”¶åˆ°å¸§å³è®¤ä¸ºæ— æ•°æ®
 
 static uint8_t k230_rx_byte;
 static uint8_t k230_rx_data[RX_BUF_SIZE];
@@ -16,7 +16,7 @@ static uint8_t k230_rx_index = 0;
 static uint8_t k230_rx_state = 0;
 static uint8_t k230_frame_ready = 0;
 
-// ¶ÔÍâ±©Â¶µÄ½âÎö½á¹û
+// å¯¹å¤–æš´éœ²çš„è§£æç»“æœ
 int16_t target_x = -1;
 int16_t target_y = -1;
 int16_t target_w = -1;
@@ -24,24 +24,24 @@ int16_t target_h = -1;
 int16_t screen_w = 0;
 int16_t screen_h = 0;
 
-// ³¬Ê±¼ì²âÏà¹Ø
-static uint32_t last_k230_recv_tick = 0;   // ÉÏÒ»´Î³É¹¦½âÎöÖ¡µÄÊ±¿Ì
+// è¶…æ—¶æ£€æµ‹ç›¸å…³
+static uint32_t last_k230_recv_tick = 0;   // ä¸Šä¸€æ¬¡æˆåŠŸè§£æå¸§çš„æ—¶åˆ»
 
 static void Parse_K230_Data(uint8_t *data);
 
 /**
- * @brief  K230Ä£¿é³õÊ¼»¯
+ * @brief  K230æ¨¡å—åˆå§‹åŒ–
  */
 void K230_Init(void)
 {
     MX_USART3_UART_Init();
     HAL_UART_Receive_IT(&huart3, &k230_rx_byte, 1);
-    last_k230_recv_tick = HAL_GetTick();    // ³õÊ¼»¯Ê±¼ä´Á
-    printf("K230ÊÓ¾õÄ£¿é³õÊ¼»¯Íê³É\r\n");
+    last_k230_recv_tick = HAL_GetTick();    // åˆå§‹åŒ–æ—¶é—´æˆ³
+    printf("K230\xCA\xD3\xBE\xF5\xC4\xA3\xBF\xE9\xB3\xF5\xCA\xBC\xBB\xAF\xCD\xEA\xB3\xC9\r\n");
 }
 
 /**
- * @brief  ´¦ÀíK230½ÓÊÕÖ¡£¬²¢Î¬»¤³¬Ê±×´Ì¬
+ * @brief  å¤„ç†K230æ¥æ”¶å¸§ï¼Œå¹¶ç»´æŠ¤è¶…æ—¶çŠ¶æ€
  */
 void K230_Process(void)
 {
@@ -50,14 +50,14 @@ void K230_Process(void)
         k230_frame_ready = 0;
     }
 
-    // ³¬Ê±¼ì²â£º³¬¹ı K230_TIMEOUT_MS Î´ÊÕµ½ÈÎºÎÓĞĞ§Ö¡£¬ÊÓÎªÎŞÊı¾İ
+    // è¶…æ—¶æ£€æµ‹ï¼šè¶…è¿‡ K230_TIMEOUT_MS æœªæ”¶åˆ°ä»»ä½•æœ‰æ•ˆå¸§ï¼Œè§†ä¸ºæ— æ•°æ®
     if (HAL_GetTick() - last_k230_recv_tick > K230_TIMEOUT_MS) {
         k230_data_valid = 0;
     }
 }
 
 /**
- * @brief  ´®¿Ú½ÓÊÕÍê³ÉÖĞ¶Ï»Øµ÷º¯Êı
+ * @brief  ä¸²å£æ¥æ”¶å®Œæˆä¸­æ–­å›è°ƒå‡½æ•°
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -95,7 +95,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 /**
- * @brief  ½âÎöCSVÊı¾İÖ¡£¬½öÅĞ¶Ï¸ñÊ½£¬²»ÒòÄÚÈİÎª-1¶øÖÃÎŞĞ§
+ * @brief  è§£æCSVæ•°æ®å¸§ï¼Œä»…åˆ¤æ–­æ ¼å¼ï¼Œä¸å› å†…å®¹ä¸º-1è€Œç½®æ— æ•ˆ
  */
 static void Parse_K230_Data(uint8_t *data)
 {
@@ -106,8 +106,8 @@ static void Parse_K230_Data(uint8_t *data)
            &target_w, &target_h);
     
     if (result != 6) {
-        // ½âÎöÊ§°Ü£¬±£³ÖÉÏ´ÎÊı¾İ£¬µ«²»Çå³ı k230_data_valid
-        printf("K230Êı¾İ½âÎöÊ§°Ü: %s\r\n", data);
+        // è§£æå¤±è´¥ï¼Œä¿æŒä¸Šæ¬¡æ•°æ®ï¼Œä½†ä¸æ¸…é™¤ k230_data_valid
+        printf("K230\xCA\xFD\xBE\xDD\xBD\xE2\xCE\xF6\xCA\xA7\xB0\xDC: %s\r\n", data);
         return;   
     }
 
@@ -115,15 +115,15 @@ static void Parse_K230_Data(uint8_t *data)
     screen_w = sw;
     screen_h = sh;
 
-    // ¸üĞÂÓĞĞ§Ö¡±êÖ¾ºÍÊ±¼ä´Á
+    // æ›´æ–°æœ‰æ•ˆå¸§æ ‡å¿—å’Œæ—¶é—´æˆ³
     k230_data_valid = 1;
     last_k230_recv_tick = HAL_GetTick();
 
    
     if (target_x == -1 && target_y == -1 && target_w == -1 && target_h == -1) {
-        printf("K230£ºÎ´¼ì²âµ½Ä¿±ê\r\n");
+        printf("K230\xA3\xBA\xCE\xB4\xBC\xEC\xB2\xE2\xB5\xBD\xC4\xBF\xB1\xEA\r\n");
     } else {
-        printf("K230Ê¶±ğµ½Ä¿±ê: X=%d Y=%d W=%d H=%d\r\n", 
+        printf("K230\xCA\xB6\xB1\xF0\xB5\xBD\xC4\xBF\xB1\xEA: X=%d Y=%d W=%d H=%d\r\n", 
                target_x, target_y, target_w, target_h);
     }
 }

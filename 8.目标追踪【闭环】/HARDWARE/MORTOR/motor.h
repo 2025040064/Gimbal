@@ -24,10 +24,10 @@ typedef struct {
     int32_t  current_step;
     int32_t  home_steps;
     uint32_t next_pulse_tick;
-    uint16_t pulse_delay;      // 当前实际脉冲间隔(us)
-    uint16_t target_delay;     // 目标脉冲间隔(us)
-    int16_t  accel_rate;       // 加减速速率(us/ms)
-    uint32_t last_accel_time;  // 每个电机独立的加减速时间戳
+    uint16_t pulse_delay;      // 褰撳墠瀹為檯鑴夊啿闂撮殧(us)
+    uint16_t target_delay;     // 鐩爣鑴夊啿闂撮殧(us)
+    int16_t  accel_rate;       // 鍔犲噺閫熼�熺巼(us/ms)
+    uint32_t last_accel_time;  // 姣忎釜鐢垫満鐙珛鐨勫姞鍑忛�熸椂闂存埑
     uint8_t  is_running;
 } MotorCtrl_TypeDef;
 

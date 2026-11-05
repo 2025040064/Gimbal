@@ -8,8 +8,8 @@ extern "C" {
 #endif
 
 /**
- * @brief ³õÊ¼»¯DWTÄÚºË¼ÆÊýÆ÷£¨Î¢Ãë¼¶¸ß¾«¶È¼ÆÊ±£©
- * @note 72MHzÏµÍ³Ê±ÖÓÏÂ£¬¾«¶ÈÔ¼14ns£¬Òç³öÊ±¼äÔ¼59.6Ãë
+ * @brief åˆå§‹åŒ–DWTå†…æ ¸è®¡æ•°å™¨ï¼ˆå¾®ç§’çº§é«˜ç²¾åº¦è®¡æ—¶ï¼‰
+ * @note 72MHzç³»ç»Ÿæ—¶é’Ÿä¸‹ï¼Œç²¾åº¦çº¦14nsï¼Œæº¢å‡ºæ—¶é—´çº¦59.6ç§’
  */
 static inline void DWT_Init(void) {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -18,8 +18,8 @@ static inline void DWT_Init(void) {
 }
 
 /**
- * @brief »ñÈ¡µ±Ç°ÏµÍ³ÔËÐÐµÄÎ¢ÃëÊý
- * @return ×ÔÆô¶¯ÒÔÀ´µÄÎ¢Ãë¼ÆÊý
+ * @brief èŽ·å–å½“å‰ç³»ç»Ÿè¿è¡Œçš„å¾®ç§’æ•°
+ * @return è‡ªå¯åŠ¨ä»¥æ¥çš„å¾®ç§’è®¡æ•°
  */
 static inline uint32_t DWT_GetTickUs(void) {
     return DWT->CYCCNT / (SystemCoreClock / 1000000);

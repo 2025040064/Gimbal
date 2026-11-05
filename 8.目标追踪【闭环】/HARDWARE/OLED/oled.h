@@ -1,22 +1,22 @@
 //////////////////////////////////////////////////////////////////////////////////	 
-//±¾³ÌĞòÖ»¹©Ñ§Ï°Ê¹ÓÃ£¬Î´¾­×÷ÕßĞí¿É£¬²»µÃÓÃÓÚÆäËüÈÎºÎÓÃÍ¾
-//ÖĞ¾°Ô°µç×Ó
-//µêÆÌµØÖ·£ºhttp://shop73023976.taobao.com/?spm=2013.1.0.0.M4PqC2
+//æœ¬ç¨‹åºåªä¾›å­¦ä¹ ä½¿ç”¨ï¼Œæœªç»ä½œè€…è®¸å¯ï¼Œä¸å¾—ç”¨äºå…¶å®ƒä»»ä½•ç”¨é€”
+//ä¸­æ™¯å›­ç”µå­
+//åº—é“ºåœ°å€ï¼šhttp://shop73023976.taobao.com/?spm=2013.1.0.0.M4PqC2
 //
-//  ÎÄ ¼ş Ãû   : main.c
-//  °æ ±¾ ºÅ   : v2.0
-//  ×÷    Õß   : Evk123
-//  Éú³ÉÈÕÆÚ   : 2014-0101
-//  ×î½üĞŞ¸Ä   : 
-//  ¹¦ÄÜÃèÊö   : 0.69´çOLED ½Ó¿ÚÑİÊ¾Àı³Ì(STM32F103ZEÏµÁĞIIC)
-//              ËµÃ÷: 
+//  æ–‡ ä»¶ å   : main.c
+//  ç‰ˆ æœ¬ å·   : v2.0
+//  ä½œ    è€…   : Evk123
+//  ç”Ÿæˆæ—¥æœŸ   : 2014-0101
+//  æœ€è¿‘ä¿®æ”¹   : 
+//  åŠŸèƒ½æè¿°   : 0.69å¯¸OLED æ¥å£æ¼”ç¤ºä¾‹ç¨‹(STM32F103ZEç³»åˆ—IIC)
+//              è¯´æ˜: 
 //              ----------------------------------------------------------------
-//              GND   µçÔ´µØ
-//              VCC   ½Ó5V»ò3.3vµçÔ´
-//              SCL   ½ÓPD6£¨SCL£©
-//              SDA   ½ÓPD7£¨SDA£©            
+//              GND   ç”µæºåœ°
+//              VCC   æ¥5Væˆ–3.3vç”µæº
+//              SCL   æ¥PD6ï¼ˆSCLï¼‰
+//              SDA   æ¥PD7ï¼ˆSDAï¼‰            
 //              ----------------------------------------------------------------
-//Copyright(C) ÖĞ¾°Ô°µç×Ó2014/3/16
+//Copyright(C) ä¸­æ™¯å›­ç”µå­2014/3/16
 //All rights reserved
 //////////////////////////////////////////////////////////////////////////////////
 #ifndef __OLED_H
@@ -33,7 +33,7 @@
 #define	Brightness	0xFF 
 #define X_WIDTH 	128
 #define Y_WIDTH 	64	    						  
-//-----------------OLED IIC¶Ë¿Ú¶¨Òå----------------  					   
+//-----------------OLED IICç«¯å£å®šä¹‰----------------  					   
 
 //#define OLED_SCLK_Clr() GPIO_ResetBits(GPIOA,GPIO_Pin_5)//SCL
 //#define OLED_SCLK_Set() GPIO_SetBits(GPIOA,GPIO_Pin_5)
@@ -41,17 +41,17 @@
 //#define OLED_SDIN_Clr() GPIO_ResetBits(GPIOA,GPIO_Pin_7)//SDA
 //#define OLED_SDIN_Set() GPIO_SetBits(GPIOA,GPIO_Pin_7)
 
-#define OLED_SCLK_Clr() HAL_GPIO_WritePin(OLED_SCL_GPIO_Port, OLED_SCL_Pin, GPIO_PIN_RESET)//ÉèÖÃSCLµÍµçÆ½
-#define OLED_SCLK_Set() HAL_GPIO_WritePin(OLED_SCL_GPIO_Port, OLED_SCL_Pin, GPIO_PIN_SET)//ÉèÖÃSCL¸ßµçÆ½
+#define OLED_SCLK_Clr() HAL_GPIO_WritePin(OLED_SCL_GPIO_Port, OLED_SCL_Pin, GPIO_PIN_RESET)//è®¾ç½®SCLä½ç”µå¹³
+#define OLED_SCLK_Set() HAL_GPIO_WritePin(OLED_SCL_GPIO_Port, OLED_SCL_Pin, GPIO_PIN_SET)//è®¾ç½®SCLé«˜ç”µå¹³
 
-#define OLED_SDIN_Clr() HAL_GPIO_WritePin(OLED_SDA_GPIO_Port,OLED_SDA_Pin,GPIO_PIN_RESET)//ÉèÖÃSDAµÍµçÆ½
-#define OLED_SDIN_Set() HAL_GPIO_WritePin(OLED_SDA_GPIO_Port,OLED_SDA_Pin,GPIO_PIN_SET)//ÉèÖÃSDA¸ßµçÆ½
+#define OLED_SDIN_Clr() HAL_GPIO_WritePin(OLED_SDA_GPIO_Port,OLED_SDA_Pin,GPIO_PIN_RESET)//è®¾ç½®SDAä½ç”µå¹³
+#define OLED_SDIN_Set() HAL_GPIO_WritePin(OLED_SDA_GPIO_Port,OLED_SDA_Pin,GPIO_PIN_SET)//è®¾ç½®SDAé«˜ç”µå¹³
  		     
-#define OLED_CMD  0	//Ğ´ÃüÁî
-#define OLED_DATA 1	//Ğ´Êı¾İ
+#define OLED_CMD  0	//å†™å‘½ä»¤
+#define OLED_DATA 1	//å†™æ•°æ®
 
 
-//OLED¿ØÖÆÓÃº¯Êı
+//OLEDæ§åˆ¶ç”¨å‡½æ•°
 void OLED_WR_Byte(unsigned dat,unsigned cmd);  
 void OLED_Display_On(void);
 void OLED_Display_Off(void);	   							   		    

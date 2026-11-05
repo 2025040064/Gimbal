@@ -146,7 +146,7 @@ void MPU6050_Init(void) {
     pitch = 0.0f;
     roll = 0.0f;
     yaw = 0.0f;
-    printf("MPU6050陀螺仪初始化完成\r\n");
+    printf("MPU6050\xCD\xD3\xC2\xDD\xD2\xC7\xB3\xF5\xCA\xBC\xBB\xAF\xCD\xEA\xB3\xC9\r\n");
 }
 
 uint8_t MPU6050_ReadData(MPU6050_Data_TypeDef *data) {

@@ -5,7 +5,7 @@
 #include "stabilizer.h"
 #include "stdio.h"
 
-// È«¾Ö±äÁ¿¶¨Òå
+// å…¨å±€å˜é‡å®šä¹‰
 MotorCtrl_TypeDef motorCtrl1;
 MotorCtrl_TypeDef motorCtrl2;
 char oled_buf[32];
@@ -30,14 +30,14 @@ uint8_t k230_data_valid = 0;
 
 TIM_HandleTypeDef htim2;
 
-// ¶¨Ê±Æ÷³õÊ¼»¯
+// å®šæ—¶å™¨åˆå§‹åŒ–
 void MX_TIM2_Init(void)
 {
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     htim2.Instance = TIM2;
     htim2.Init.Prescaler = 71;
     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 49;      // 50usÖĞ¶ÏÒ»´Î
+    htim2.Init.Period = 49;      // 50usä¸­æ–­ä¸€æ¬¡
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
@@ -51,7 +51,7 @@ void MX_TIM2_Init(void)
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 }
 
-// ¶¨Ê±Æ÷ÖĞ¶Ï»Øµ÷
+// å®šæ—¶å™¨ä¸­æ–­å›è°ƒ
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2) {
@@ -60,7 +60,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
 }
 
-// °´¼ü´¦Àí
+// æŒ‰é”®å¤„ç†
 void Key_Process(void)
 {
     uint32_t now = HAL_GetTick();
@@ -87,7 +87,7 @@ void Key_Process(void)
     }
 }
 
-// ËùÓĞµç»úÍ£Ö¹
+// æ‰€æœ‰ç”µæœºåœæ­¢
 void Motor_All_Stop(void)
 {
     Motor_Enable(&hmotor1);
@@ -98,7 +98,7 @@ void Motor_All_Stop(void)
     m2_run = 0;
 }
 
-// OLEDÏÔÊ¾¸üĞÂ
+// OLEDæ˜¾ç¤ºæ›´æ–°
 void Update_OLED_Display(void)
 {
     if (current_page == 0) {
@@ -121,7 +121,7 @@ void Update_OLED_Display(void)
     }
 }
 
-// ÏµÍ³Ê±ÖÓÅäÖÃ
+// ç³»ç»Ÿæ—¶é’Ÿé…ç½®
 void SystemClock_Config(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -143,7 +143,7 @@ void SystemClock_Config(void)
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) Error_Handler();
 }
 
-// ´íÎó´¦Àí
+// é”™è¯¯å¤„ç†
 void Error_Handler(void)
 {
     __disable_irq();

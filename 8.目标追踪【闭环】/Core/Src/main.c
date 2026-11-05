@@ -12,50 +12,50 @@
 
 int main(void)
 {
-    // ÏµÍ³³õÊ¼»¯
+    // ç³»ç»Ÿåˆå§‹åŒ–
     HAL_Init();
     DWT_Init();
     SystemClock_Config();
     
-    // ÍâÉè³õÊ¼»¯
+    // å¤–è®¾åˆå§‹åŒ–
     MX_GPIO_Init();
     MX_USART1_UART_Init();
     MX_TIM2_Init();
     MX_ADC1_Init();
     
-    // Ä£¿é³õÊ¼»¯
+    // æ¨¡å—åˆå§‹åŒ–
     K230_Init();
     MPU6050_Init();
     OLED_Init();
     OLED_Clear();
     
-    // µç»ú³õÊ¼»¯
+    // ç”µæœºåˆå§‹åŒ–
     Motor_GPIO_Init(&hmotor1);
     Motor_GPIO_Init(&hmotor2);
     MotorCtrl_Init(&motorCtrl1, &hmotor1);
     MotorCtrl_Init(&motorCtrl2, &hmotor2);
     
-    // ÎÈ¶¨Æ÷³õÊ¼»¯
+    // ç¨³å®šå™¨åˆå§‹åŒ–
     Stabilizer_Init();
     Motor_All_Stop();
     
-    // Æô¶¯ÌáÊ¾
+    // å¯åŠ¨æç¤º
     OLED_ShowString(0, 0, (uint8_t*)"System Ready...", 16);
     OLED_ShowString(0, 2, (uint8_t*)"Click to switch", 16);
     OLED_ShowString(0, 4, (uint8_t*)"display page", 16);
     HAL_Delay(1500);
     OLED_Clear();
     
-    // Æô¶¯¶¨Ê±Æ÷ÖĞ¶Ï
+    // å¯åŠ¨å®šæ—¶å™¨ä¸­æ–­
     HAL_TIM_Base_Start_IT(&htim2);
     
-    // Ö÷Ñ­»·
+    // ä¸»å¾ªç¯
     uint32_t last_oled_update = 0;
     uint32_t last_dwt_reset = 0;
     
     while (1)
     {
-        // DWTÒç³ö×Ô¶¯ÖØÖÃ£¨Ã¿50Ãë£©
+        // DWTæº¢å‡ºè‡ªåŠ¨é‡ç½®ï¼ˆæ¯50ç§’ï¼‰
         if (HAL_GetTick() - last_dwt_reset >= 50000) {
             __disable_irq();
             uint32_t offset = DWT->CYCCNT;
@@ -66,35 +66,35 @@ int main(void)
             last_dwt_reset = HAL_GetTick();
         }
 
-        // ¶ÁÈ¡ÊäÈë
+        // è¯»å–è¾“å…¥
         Joystick_Read(&joystick_x, &joystick_y);
         joy_key = Joystick_K_Read();
         Key_Process();
 
-        // ´¦Àí°´¼üÊÂ¼ş
+        // å¤„ç†æŒ‰é”®äº‹ä»¶
         if (key_single_click) {
             current_page = (current_page + 1) % 2;
             OLED_Clear();
             key_single_click = 0;
         }
 
-        // ¶ÁÈ¡MPU6050Êı¾İ£¨100msÒ»´Î£©
+        // è¯»å–MPU6050æ•°æ®ï¼ˆ100msä¸€æ¬¡ï¼‰
         if (HAL_GetTick() - last_mpu_read >= 100) {
             MPU6050_ReadData(&mpu_data);
             last_mpu_read = HAL_GetTick();
         }
 
-        // ¸üĞÂÎÈ¶¨Æ÷ºÍK230Êı¾İ
+        // æ›´æ–°ç¨³å®šå™¨å’ŒK230æ•°æ®
         Stabilizer_Update();
         K230_Process();
 
-        // ¸üĞÂOLEDÏÔÊ¾£¨200msÒ»´Î£©
+        // æ›´æ–°OLEDæ˜¾ç¤ºï¼ˆ200msä¸€æ¬¡ï¼‰
         if (HAL_GetTick() - last_oled_update >= 200) {
             Update_OLED_Display();
             last_oled_update = HAL_GetTick();
         }
 
-        // LED×´Ì¬Ö¸Ê¾
+        // LEDçŠ¶æ€æŒ‡ç¤º
         if (MotorCtrl_IsRunning(&motorCtrl1) || MotorCtrl_IsRunning(&motorCtrl2))
             HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
         else

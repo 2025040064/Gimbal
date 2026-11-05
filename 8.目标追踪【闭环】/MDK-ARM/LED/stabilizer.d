@@ -8,14 +8,14 @@ led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h
 led\stabilizer.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h
 led\stabilizer.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h
 led\stabilizer.o: ../Drivers/CMSIS/Include/core_cm3.h
-led\stabilizer.o: D:\Keil_MDK\ARM\ARMCC\Bin\..\include\stdint.h
+led\stabilizer.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdint.h
 led\stabilizer.o: ../Drivers/CMSIS/Include/cmsis_version.h
 led\stabilizer.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 led\stabilizer.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 led\stabilizer.o: ../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h
 led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-led\stabilizer.o: D:\Keil_MDK\ARM\ARMCC\Bin\..\include\stddef.h
+led\stabilizer.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stddef.h
 led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc_ex.h
 led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h
 led\stabilizer.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio_ex.h
@@ -33,7 +33,7 @@ led\stabilizer.o: ..\HARDWARE\MORTOR\motor.h
 led\stabilizer.o: ..\HARDWARE\DWT_DELAY\dwt_delay.h
 led\stabilizer.o: ..\HARDWARE\MPU6050\mpu6050.h
 led\stabilizer.o: ../HARDWARE/OLED/oled.h
-led\stabilizer.o: D:\Keil_MDK\ARM\ARMCC\Bin\..\include\stdlib.h
-led\stabilizer.o: D:\Keil_MDK\ARM\ARMCC\Bin\..\include\math.h
+led\stabilizer.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdlib.h
+led\stabilizer.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\math.h
 led\stabilizer.o: ..\HARDWARE\ADC\adc.h
 led\stabilizer.o: ..\HARDWARE\K230\k230.h

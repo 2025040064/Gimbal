@@ -3,17 +3,17 @@
 
 #include "main.h"
 
-// ¶ÔÍâ±©Â¶µÄ½âÎö½á¹û
+// å¯¹å¤–æš´éœ²çš„è§£æç»“æœ
 extern int16_t target_x;
 extern int16_t target_y;
 extern int16_t target_w;
 extern int16_t target_h;
 
-/* ÆÁÄ»³ß´ç£¬ÓÃÓÚ¼ÆËãÍ¼ÏñÖĞĞÄ */
+/* å±å¹•å°ºå¯¸ï¼Œç”¨äºè®¡ç®—å›¾åƒä¸­å¿ƒ */
 extern int16_t screen_w;
 extern int16_t screen_h;
 
-// ¶ÔÍâ±©Â¶µÄ³õÊ¼»¯ºÍ´¦Àíº¯Êı
+// å¯¹å¤–æš´éœ²çš„åˆå§‹åŒ–å’Œå¤„ç†å‡½æ•°
 void K230_Init(void);
 void K230_Process(void);
 

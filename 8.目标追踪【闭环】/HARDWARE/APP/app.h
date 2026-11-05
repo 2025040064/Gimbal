@@ -5,7 +5,7 @@
 #include "motor.h"
 #include "mpu6050.h"
 
-// È«¾Ö±äÁ¿ÉùÃ÷
+// å…¨å±€å˜é‡å£°æ˜
 extern MotorCtrl_TypeDef motorCtrl1;
 extern MotorCtrl_TypeDef motorCtrl2;
 extern char oled_buf[32];
@@ -24,11 +24,11 @@ extern uint8_t key_single_click;
 extern uint8_t k230_data_valid;
 extern TIM_HandleTypeDef htim2;
 
-// ºê¶¨Òå
+// å®å®šä¹‰
 #define SHOW_MODE    0
 #define KEY_DEBOUNCE_TIME 20
 
-// º¯ÊıÉùÃ÷
+// å‡½æ•°å£°æ˜
 void MX_TIM2_Init(void);
 void Update_OLED_Display(void);
 void Motor_All_Stop(void);
