@@ -1,129 +1,105 @@
 #include "k230.h"
+#include <string.h>
+
+int K230_Parse(const char *line, VisionFrame *out)
+{
+    int32_t v[10];
+    unsigned n = 0;
+    int32_t value;
+    int negative;
+    VisionFrame f;
+
+    do {
+        negative = *line == '-';
+        if (negative) ++line;
+        if (*line < '0' || *line > '9' || n == 10) return 0;
+        value = 0;
+        do {
+            value = value * 10 + *line++ - '0';
+            if (value > 65535) return 0;
+        } while (*line >= '0' && *line <= '9');
+        v[n++] = negative ? -value : value;
+        if (!*line) break;
+        if (*line++ != ',') return 0;
+    } while (1);
+    if (n != 6 && n != 7 && n != 10) return 0;
+    if (v[0] < 1 || v[0] > 4096 || v[1] < 1 || v[1] > 4096) return 0;
+    if (v[2] != -1 || v[3] != -1 || v[4] != -1 || v[5] != -1) {
+        if (v[2] < 0 || v[2] >= v[0] || v[3] < 0 || v[3] >= v[1] ||
+            v[4] < 1 || v[4] > v[0] || v[5] < 1 || v[5] > v[1]) return 0;
+    }
+    if (n >= 7 && (v[6] < 0 || v[6] > 2047)) return 0;
+    if (n == 10) {
+        if (v[7] < VISION_IDLE || v[7] > VISION_FAULT || v[9] < 0) return 0;
+        if (v[7] == VISION_TRACK) {
+            if (v[8] < 0 || v[8] > 9 || (v[2] >= 0 && !(v[6] & (1u << v[8])))) return 0;
+        } else if (v[8] != -1 || v[2] != -1) return 0;
+    }
+    f.width = v[0]; f.height = v[1]; f.x = v[2]; f.y = v[3];
+    f.box_w = v[4]; f.box_h = v[5]; f.ids = n >= 7 ? v[6] : 0;
+    f.mode = n == 10 ? v[7] : VISION_LEGACY;
+    f.id = n == 10 ? v[8] : -1;
+    f.sequence = n == 10 ? v[9] : 0;
+    *out = f;
+    return 1;
+}
+
+#ifndef CONTEST_HOST_TEST
 #include "usart.h"
-#include "string.h"
-#include "stdio.h"
 
 extern UART_HandleTypeDef huart3;
-extern void MX_USART3_UART_Init(void);
-extern uint8_t k230_data_valid;
+static uint8_t byte_in;
+static char receive[80];
+static char mailbox[80];
+static uint8_t index_in, rx_state;
+static volatile uint8_t ready;
 
-#define RX_BUF_SIZE         64
-#define K230_TIMEOUT_MS     500   // 超时时间：超过此时间未收到帧即认为无数据
-
-static uint8_t k230_rx_byte;
-static uint8_t k230_rx_data[RX_BUF_SIZE];
-static uint8_t k230_rx_index = 0;
-static uint8_t k230_rx_state = 0;
-static uint8_t k230_frame_ready = 0;
-
-// 对外暴露的解析结果
-int16_t target_x = -1;
-int16_t target_y = -1;
-int16_t target_w = -1;
-int16_t target_h = -1;
-int16_t screen_w = 0;
-int16_t screen_h = 0;
-
-// 超时检测相关
-static uint32_t last_k230_recv_tick = 0;   // 上一次成功解析帧的时刻
-
-static void Parse_K230_Data(uint8_t *data);
-
-/**
- * @brief  K230模块初始化
- */
 void K230_Init(void)
 {
     MX_USART3_UART_Init();
-    HAL_UART_Receive_IT(&huart3, &k230_rx_byte, 1);
-    last_k230_recv_tick = HAL_GetTick();    // 初始化时间戳
-    printf("K230\xCA\xD3\xBE\xF5\xC4\xA3\xBF\xE9\xB3\xF5\xCA\xBC\xBB\xAF\xCD\xEA\xB3\xC9\r\n");
+    HAL_UART_Receive_IT(&huart3, &byte_in, 1);
 }
 
-/**
- * @brief  处理K230接收帧，并维护超时状态
- */
-void K230_Process(void)
+int K230_Send(const char *command)
 {
-    if (k230_frame_ready) {
-        Parse_K230_Data(k230_rx_data);
-        k230_frame_ready = 0;
-    }
-
-    // 超时检测：超过 K230_TIMEOUT_MS 未收到任何有效帧，视为无数据
-    if (HAL_GetTick() - last_k230_recv_tick > K230_TIMEOUT_MS) {
-        k230_data_valid = 0;
-    }
+    return HAL_UART_Transmit(&huart3, (uint8_t *)command, strlen(command), 10) == HAL_OK;
 }
 
-/**
- * @brief  串口接收完成中断回调函数
- */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+int K230_Read(VisionFrame *out)
 {
-    if (huart->Instance == USART3) {
-        uint8_t data = k230_rx_byte;
+    int parsed;
+    if (!ready) return 0;
+    parsed = K230_Parse(mailbox, out);
+    ready = 0;
+    return parsed;
+}
 
-        switch (k230_rx_state) {
-            case 0: if (data == 0xAA) k230_rx_state = 1; break;
-            case 1: 
-                if (data == 0x55) {
-                    k230_rx_state = 2;
-                    k230_rx_index = 0;
-                    memset(k230_rx_data, 0, RX_BUF_SIZE);
-                } else {
-                    k230_rx_state = 0;
-                }
-                break;
-            case 2:
-                if (data == 0x0D) {
-                    k230_rx_state = 3;
-                } else {
-                    k230_rx_data[k230_rx_index++] = data;
-                    if (k230_rx_index >= RX_BUF_SIZE - 1) k230_rx_state = 0;
-                }
-                break;
-            case 3:
-                if (data == 0x0A) k230_frame_ready = 1;
-                k230_rx_state = 0;
-                break;
-            default: k230_rx_state = 0; break;
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uart)
+{
+    if (uart->Instance != USART3) return;
+    if (byte_in == 0xAA) rx_state = 1;
+    else if (rx_state == 1) {
+        rx_state = byte_in == 0x55 ? 2 : 0;
+        index_in = 0;
+    } else if (rx_state == 2) {
+        if (byte_in == '\r') rx_state = 3;
+        else if (byte_in < 32 || byte_in > 126 || index_in == sizeof(receive) - 1) rx_state = 0;
+        else receive[index_in++] = byte_in;
+    } else if (rx_state == 3) {
+        if (byte_in == '\n' && !ready) {
+            receive[index_in] = 0;
+            memcpy(mailbox, receive, index_in + 1u);
+            ready = 1;
         }
-
-        HAL_UART_Receive_IT(&huart3, &k230_rx_byte, 1);
+        rx_state = 0;
     }
+    HAL_UART_Receive_IT(uart, &byte_in, 1);
 }
 
-/**
- * @brief  解析CSV数据帧，仅判断格式，不因内容为-1而置无效
- */
-static void Parse_K230_Data(uint8_t *data)
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *uart)
 {
-    int16_t sw, sh;
-    int result = sscanf((char*)data, "%hd,%hd,%hd,%hd,%hd,%hd", 
-           &sw, &sh, 
-           &target_x, &target_y, 
-           &target_w, &target_h);
-    
-    if (result != 6) {
-        // 解析失败，保持上次数据，但不清除 k230_data_valid
-        printf("K230\xCA\xFD\xBE\xDD\xBD\xE2\xCE\xF6\xCA\xA7\xB0\xDC: %s\r\n", data);
-        return;   
-    }
-
-    
-    screen_w = sw;
-    screen_h = sh;
-
-    // 更新有效帧标志和时间戳
-    k230_data_valid = 1;
-    last_k230_recv_tick = HAL_GetTick();
-
-   
-    if (target_x == -1 && target_y == -1 && target_w == -1 && target_h == -1) {
-        printf("K230\xA3\xBA\xCE\xB4\xBC\xEC\xB2\xE2\xB5\xBD\xC4\xBF\xB1\xEA\r\n");
-    } else {
-        printf("K230\xCA\xB6\xB1\xF0\xB5\xBD\xC4\xBF\xB1\xEA: X=%d Y=%d W=%d H=%d\r\n", 
-               target_x, target_y, target_w, target_h);
-    }
+    if (uart->Instance != USART3) return;
+    rx_state = 0;
+    if (uart->RxState == HAL_UART_STATE_READY) HAL_UART_Receive_IT(uart, &byte_in, 1);
 }
+#endif

@@ -72,13 +72,46 @@ class K230GimbalTests(unittest.TestCase):
         _, new_ids, _ = self.confirm([(0, self.first_card)], 60200)
         self.assertEqual(new_ids, (0,))
 
+    def test_stop_reports_scan_once_even_when_no_cards_were_found(self):
+        for cards, expected in (([(10, self.first_card)], (10,)), ([], ())):
+            self.assertTrue(self.session.command(b"SCAN", 100))
+            self.confirm(cards, 100)
+            self.assertTrue(self.session.command(b"STOP", 500))
+            self.assertEqual(self.session.observe([], 501)[2], expected)
+            self.assertIsNone(self.session.observe([], 502)[2])
+
+    def test_terminal_accepts_cr_lf_and_crlf(self):
+        reader = vision.CommandReader()
+        self.assertEqual(list(reader.feed(b"SCAN\rID,10\nSTOP\r\n")),
+                         [b"SCAN", b"ID,10", b"STOP"])
+
+    def test_default_preview_does_not_open_command_input(self):
+        uart = Mock()
+        select = SimpleNamespace(poll=Mock())
+        with patch.dict(sys.modules, {"select": select}):
+            self.assertIsNone(vision.open_command_input(uart))
+        select.poll.assert_not_called()
+        uart.read.assert_not_called()
+
+    def test_usb_read_checks_readiness_and_limits_input_per_frame(self):
+        stream = io.StringIO("ID,10\rSCAN\n")
+        poller = Mock()
+        poller.poll.side_effect = lambda timeout: [(stream, 1)] if stream.tell() < 11 else []
+        read = vision.USBCommandInput(stream, poller, 1)
+        self.assertEqual(read(6), b"ID,10\r")
+        self.assertEqual(read(32), b"SCAN\n")
+        self.assertEqual(read(32), b"")
+        self.assertTrue(all(call.args == (0,) for call in poller.poll.call_args_list))
+
     def test_commands_handle_split_lines_and_discard_oversize_lines(self):
         reader = vision.CommandReader()
         self.assertEqual(list(reader.feed(b"ID,")), [])
-        self.assertEqual(list(reader.feed(b"0\r")), [])
-        self.assertEqual(list(reader.feed(b"\nSCAN\n")), [b"ID,0", b"SCAN"])
+        self.assertEqual(list(reader.feed(b"0\r")), [b"ID,0"])
+        self.assertEqual(list(reader.feed(b"\nSCAN\n")), [b"SCAN"])
         self.assertEqual(list(reader.feed(b"1234567890ID,6\nID,9\n")), [b"ID,9"])
-        self.assertFalse(self.session.command(b"ID,10", 0))
+        self.assertTrue(self.session.command(b"ID,10", 0))
+        self.assertEqual(self.session.target_id, 10)
+        self.assertTrue(self.session.command(b"STOP", 0))
         self.assertFalse(self.session.command(b"ID,-1", 0))
         self.assertIsNone(self.session.target_id)
 
@@ -115,7 +148,7 @@ class K230GimbalTests(unittest.TestCase):
 
         def show_image(frame):
             preview[now] = [call.args[0] for call in frame.draw_rectangle.call_args_list]
-            if now == 225:
+            if now == 325:
                 raise KeyboardInterrupt
 
         def write(frame):
@@ -124,12 +157,12 @@ class K230GimbalTests(unittest.TestCase):
 
         def detect(_):
             cards = [(8, self.larger_card)]
-            if now != 150:
+            if now != 250:
                 cards.append((0, self.first_card))
             return cards
 
         uart = Mock()
-        uart.read.side_effect = [b"ID,", b"0\r\n"] + [None] * 7
+        read_commands = Mock(side_effect=[b""] * 4 + [b"ID,", b"0\r\n"] + [b""] * 7)
         uart.write.side_effect = write
         sensor = Mock()
         sensor.snapshot.side_effect = snapshot
@@ -149,25 +182,37 @@ class K230GimbalTests(unittest.TestCase):
                            sleep_ms=Mock(), create=True),
             patch.multiple(os, exitpoint=Mock(), EXITPOINT_ENABLE_SLEEP=1, create=True),
             patch.object(vision, "detect_cards", side_effect=detect),
+            patch.object(vision, "open_command_input", return_value=read_commands),
             redirect_stdout(io.StringIO()) as console,
         ):
             vision.main()
 
-        self.assertEqual(list(preview), list(range(25, 226, 25)))
-        self.assertIn(self.first_card, preview[100])
-        self.assertNotIn(100, [stamp for stamp, _ in writes])
-        self.assertNotIn(self.first_card, preview[150])
-        self.assertIn(self.first_card, preview[225])
+        self.assertEqual(list(preview), list(range(25, 326, 25)))
+        self.assertIn(self.first_card, preview[75])
+        self.assertIn(self.first_card, preview[200])
+        self.assertNotIn(200, [stamp for stamp, _ in writes])
+        self.assertNotIn(self.first_card, preview[250])
+        self.assertIn(self.first_card, preview[325])
         selected = b"\xAA\x55640,480,45,55,30,40\r\n"
         missing = b"\xAA\x55640,480,-1,-1,-1,-1\r\n"
         self.assertEqual(writes, [
-            (25, missing), (75, missing), (125, selected),
-            (175, missing), (225, selected), (225, missing)
+            (25, missing), (75, missing), (125, missing), (175, missing),
+            (225, selected), (275, missing), (325, selected), (325, missing)
         ])
         self.assertIn("LOST,0", console.getvalue())
         self.assertEqual(console.getvalue().count("TRACK,0"), 2)
         display.init.assert_called_once_with(display.VIRT, width=640, height=480, fps=30, to_ide=True)
         uart.deinit.assert_called_once_with()
+        machine = modules["machine"]
+        machine.FPIOA.return_value.set_function.assert_any_call(
+            5, machine.FPIOA.UART2_TXD
+        )
+        machine.FPIOA.return_value.set_function.assert_called_once()
+        uart.read.assert_not_called()
+        machine.UART.assert_called_once_with(
+            machine.UART.UART2, baudrate=115200, bits=machine.UART.EIGHTBITS,
+            parity=machine.UART.PARITY_NONE, stop=machine.UART.STOPBITS_ONE
+        )
 
 
 if __name__ == "__main__":

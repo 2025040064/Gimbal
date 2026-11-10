@@ -1,21 +1,20 @@
-"""CanMV K230 vision for white cards printed with a single black digit."""
+"""CanMV K230 vision for white cards numbered 0 through 10."""
 
 DETECT_WIDTH = 640
 DETECT_HEIGHT = 480
-VFLIP = True
-HMIRROR = True
+VFLIP = False
+HMIRROR = False
 
-# Lushan Pi 40-pin header: GPIO5 TX and GPIO6 RX.
-# For its UART2 socket, set these to 11 and 12.
 UART2_TX_PIN = 5
 UART2_RX_PIN = 6
-INITIAL_TARGET_ID = None  # Set to 0-9 for bench testing without a UART command source.
+COMMAND_INPUT = "none"  # "uart2" for a PC adapter; "usb" only on verified firmware.
+INITIAL_TARGET_ID = None  # Set to 0-10 only for bench testing.
 SEND_INTERVAL_MS = 50
 SCAN_DURATION_MS = 60_000
 CONFIRM_FRAMES = 3
 
-WHITE_MIN = 158
-BLACK_MAX = 128
+WHITE_MIN = 90
+BLACK_MAX = 65
 MIN_CARD_SIDE = 18
 MIN_GLYPH_HEIGHT = 12
 MAX_CARDS_PER_FRAME = 8
@@ -289,7 +288,7 @@ def recognize_digit(gray, rect):
     return None
 
 
-def glyph_box(gray, card):
+def glyphs_in_card(gray, card):
     x, y, width, height = card
     inset_x = max(1, width // 12)
     inset_y = max(1, height // 12)
@@ -300,17 +299,35 @@ def glyph_box(gray, card):
         x_stride=1, y_stride=1, pixels_threshold=12, area_threshold=24
     )
     if not blobs:
-        return None
+        return []
+    largest = max(blob.pixels() for blob in blobs)
+    glyphs = []
+    for blob in blobs:
+        gx, gy, gw, gh = blob.rect()
+        if blob.pixels() * 5 < largest:
+            continue
+        if (gw < 4 or gh < MIN_GLYPH_HEIGHT or gh * 4 < height
+                or gx <= left or gy <= top or gx + gw >= right or gy + gh >= bottom):
+            return []
+        glyphs.append(blob.rect())
+    return sorted(glyphs, key=lambda rect: rect[0])
 
-    glyph = max(blobs, key=lambda blob: blob.pixels())
-    gx, gy, gw, gh = glyph.rect()
-    # A clipped stroke or a second sizable mark makes the card ambiguous.
-    if (gw < 4 or gh < MIN_GLYPH_HEIGHT or gh * 5 < height * 2
-            or gx <= left or gy <= top or gx + gw >= right or gy + gh >= bottom):
+
+def card_number(gray, rect):
+    glyphs = glyphs_in_card(gray, rect)
+    if len(glyphs) == 1:
+        return recognize_digit(gray, glyphs[0])
+    if len(glyphs) != 2:
         return None
-    if any(other is not glyph and other.pixels() * 4 >= glyph.pixels() for other in blobs):
+    one, zero = glyphs
+    gap = zero[0] - (one[0] + one[2])
+    if (gap < 0 or gap > max(one[3], zero[3])
+            or abs((one[1] + one[3] // 2) - (zero[1] + zero[3] // 2)) > max(one[3], zero[3]) // 3
+            or min(one[3], zero[3]) * 2 < max(one[3], zero[3])):
         return None
-    return gx, gy, gw, gh
+    if recognize_digit(gray, one) == 1 and recognize_digit(gray, zero) == 0:
+        return 10
+    return None
 
 
 def detect_cards(gray):
@@ -323,21 +340,17 @@ def detect_cards(gray):
         x, y, width, height = blob.rect()
         if (min(width, height) < MIN_CARD_SIDE
                 or max(width, height) > 3 * min(width, height)
-                or x == 0 or y == 0 or x + width >= DETECT_WIDTH or y + height >= DETECT_HEIGHT
                 or blob.pixels() * 2 < width * height):
             continue
         cards.append(blob)
-
     cards.sort(key=lambda blob: blob.pixels(), reverse=True)
-    detections = []
+    results = []
     for card in cards[:MAX_CARDS_PER_FRAME]:
         rect = card.rect()
-        glyph = glyph_box(gray, rect)
-        if glyph is not None:
-            digit = recognize_digit(gray, glyph)
-            if digit is not None:
-                detections.append((digit, rect))
-    return detections
+        number = card_number(gray, rect)
+        if number is not None:
+            results.append((number, rect))
+    return results
 
 
 def center(rect):
@@ -359,10 +372,9 @@ class CommandReader:
 
     def feed(self, data):
         for value in data or b"":
-            if value == 10:
+            if value in (10, 13):
                 if self.line and not self.discard:
-                    line = bytes(self.line)
-                    yield line[:-1] if line.endswith(b"\r") else line
+                    yield bytes(self.line)
                 self.line = bytearray()
                 self.discard = False
             elif not self.discard:
@@ -372,6 +384,46 @@ class CommandReader:
                     self.discard = True
 
 
+class USBCommandInput:
+    def __init__(self, stream, poller, pollin):
+        self.stream = stream
+        self.poller = poller
+        self.pollin = pollin
+
+    def __call__(self, limit):
+        data = bytearray()
+        for _ in range(limit):
+            events = self.poller.poll(0)
+            if not events or not events[0][1] & self.pollin:
+                break
+            chunk = self.stream.read(1)
+            if not chunk:
+                break
+            data.extend(chunk.encode() if isinstance(chunk, str) else chunk)
+        return data
+
+
+def open_command_input(uart):
+    if COMMAND_INPUT == "none":
+        return None
+    if COMMAND_INPUT == "uart2":
+        return uart.read
+    if COMMAND_INPUT != "usb":
+        raise ValueError("COMMAND_INPUT must be none, uart2 or usb")
+    try:
+        import sys
+        try:
+            import select
+        except ImportError:
+            import uselect as select
+        poller = select.poll()
+        poller.register(sys.stdin, select.POLLIN)
+        return USBCommandInput(sys.stdin, poller, select.POLLIN)
+    except (ImportError, AttributeError, OSError, TypeError, ValueError) as error:
+        print("COMMAND_INPUT_ERROR,USB", error)
+        return None
+
+
 class VisionSession:
     def __init__(self, ticks_diff):
         self.ticks_diff = ticks_diff
@@ -379,31 +431,42 @@ class VisionSession:
         self.scan_started = None
         self.seen = set()
         self.streaks = {}
+        self.scan_result = None
 
     def command(self, line, now):
         if line == b"SCAN":
+            if self.scan_started is not None:
+                return True
             self.scan_started = now
             self.seen.clear()
             self.target_id = None
         elif line == b"STOP":
-            self.scan_started = None
+            self.finish_scan()
             self.target_id = None
-        elif len(line) == 4 and line[:3] == b"ID," and 48 <= line[3] <= 57:
-            target_id = line[3] - 48
+        elif line == b"ID,10" or (len(line) == 4 and line[:3] == b"ID," and 48 <= line[3] <= 57):
+            target_id = 10 if line == b"ID,10" else line[3] - 48
             if target_id == self.target_id:
                 return True
             self.target_id = target_id
-            self.scan_started = None
+            self.finish_scan()
         else:
             return False
         self.streaks = {}
         return True
 
-    def observe(self, detections, now):
-        scan_result = None
-        if self.scan_started is not None and self.ticks_diff(now, self.scan_started) >= SCAN_DURATION_MS:
-            scan_result = tuple(sorted(self.seen))
+    def finish_scan(self):
+        if self.scan_started is not None:
+            self.scan_result = tuple(sorted(self.seen))
             self.scan_started = None
+
+    def take_scan_result(self):
+        result = self.scan_result
+        self.scan_result = None
+        return result
+
+    def observe(self, detections, now):
+        if self.scan_started is not None and self.ticks_diff(now, self.scan_started) >= SCAN_DURATION_MS:
+            self.finish_scan()
 
         by_id = {}
         duplicates = set()
@@ -430,7 +493,7 @@ class VisionSession:
         if self.scan_started is not None:
             new_ids = tuple(sorted(set(confirmed) - self.seen))
             self.seen.update(new_ids)
-        return confirmed, new_ids, scan_result
+        return confirmed, new_ids, self.take_scan_result()
 
 
 def coordinate_frame(rect):
@@ -467,6 +530,11 @@ def cleanup(action, *args):
         print("CLEANUP_ERROR", error)
 
 
+def report_scan_result(result):
+    if result is not None:
+        print("SCAN_RESULT,{}".format(",".join([str(digit) for digit in result])))
+
+
 def main():
     import image
     import os
@@ -477,16 +545,17 @@ def main():
     from media.sensor import Sensor
 
     if INITIAL_TARGET_ID is not None and (
-        type(INITIAL_TARGET_ID) is not int or not 0 <= INITIAL_TARGET_ID <= 9
+        type(INITIAL_TARGET_ID) is not int or not 0 <= INITIAL_TARGET_ID <= 10
     ):
-        raise ValueError("INITIAL_TARGET_ID must be None or a digit from 0 to 9")
+        raise ValueError("INITIAL_TARGET_ID must be None or a number from 0 to 10")
 
     uart = sensor = None
     display_ready = media_ready = False
     try:
         fpioa = FPIOA()
         fpioa.set_function(UART2_TX_PIN, FPIOA.UART2_TXD)
-        fpioa.set_function(UART2_RX_PIN, FPIOA.UART2_RXD)
+        if COMMAND_INPUT == "uart2":
+            fpioa.set_function(UART2_RX_PIN, FPIOA.UART2_RXD)
         uart = UART(
             UART.UART2, baudrate=115200, bits=UART.EIGHTBITS,
             parity=UART.PARITY_NONE, stop=UART.STOPBITS_ONE
@@ -508,20 +577,38 @@ def main():
         sensor.run()
 
         reader = CommandReader()
+        read_commands = open_command_input(uart)
         session = VisionSession(time.ticks_diff)
         last_send = None
         tracked_id = None
         if INITIAL_TARGET_ID is not None:
             session.command("ID,{}".format(INITIAL_TARGET_ID).encode(), time.ticks_ms())
-        print("READY UART2 115200 8N1. Commands: SCAN, ID,0-9, STOP (LF or CRLF).")
+        input_status = COMMAND_INPUT
+        if read_commands is None and COMMAND_INPUT != "none":
+            input_status = "unavailable"
+        print("READY UART2 TX 115200 8N1. Command input:", input_status)
+        if read_commands is not None:
+            print("Commands: SCAN, ID,0-10, STOP (CR, LF or CRLF).")
 
         while True:
             os.exitpoint()
-            for command in reader.feed(uart.read(32)):
+            data = None
+            if read_commands is not None:
+                try:
+                    data = read_commands(32)
+                except (OSError, TypeError, ValueError) as error:
+                    print("COMMAND_INPUT_ERROR", error)
+                    read_commands = None
+                    session.command(b"STOP", time.ticks_ms())
+                    report_scan_result(session.take_scan_result())
+                    send_coordinates(uart, None)
+                    last_send = time.ticks_ms()
+            for command in reader.feed(data):
                 now = time.ticks_ms()
                 previous_id = session.target_id
                 if session.command(command, now):
                     print("COMMAND", command.decode())
+                    report_scan_result(session.take_scan_result())
                     if previous_id is not None and previous_id != session.target_id:
                         send_coordinates(uart, None)
                         last_send = now
@@ -547,10 +634,9 @@ def main():
                 tracked_id = active_id
             for digit in new_ids:
                 print("FOUND,{}".format(digit))
-            if scan_result is not None:
-                print("SCAN_RESULT,{}".format(",".join([str(digit) for digit in scan_result])))
+            report_scan_result(scan_result)
 
-            draw_overlay(frame, confirmed, session.target_id)
+            draw_overlay(frame, confirmed, active_id)
             Display.show_image(frame)
 
     except KeyboardInterrupt:

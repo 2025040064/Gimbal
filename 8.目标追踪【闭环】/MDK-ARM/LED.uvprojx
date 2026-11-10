@@ -16,8 +16,8 @@
         <TargetCommonOption>
           <Device>STM32F103C8</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F1xx_DFP.2.3.0</PackID>
-          <PackURL>http://www.keil.com/pack/</PackURL>
+          <PackID>Keil.STM32F1xx_DFP.2.4.1</PackID>
+          <PackURL>https://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000-0x20004FFF) IROM(0x8000000-0x800FFFF)  CLOCK(8000000) CPUTYPE("Cortex-M3") TZ</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -473,7 +473,7 @@
             <File>
               <FileName>usart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>D:\(!解压缩密码是VCC)(下载winRAR解压)STM32小车相关资料V3.3.0_3(更新openmv 电磁 添加FreeRTOS 更新论文) (20250330)\STM32小车相关资料V3.3.0\01程序资料\MyCode_V3.3.0\04_LED\LED\Core\Inc\usart.h</FilePath>
+              <FilePath>../Core/Inc/usart.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -642,16 +642,6 @@
               <FilePath>..\HARDWARE\K230\k230.h</FilePath>
             </File>
             <File>
-              <FileName>adc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\ADC\adc.c</FilePath>
-            </File>
-            <File>
-              <FileName>adc.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\HARDWARE\ADC\adc.h</FilePath>
-            </File>
-            <File>
               <FileName>mpu6050.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\MPU6050\mpu6050.c</FilePath>
@@ -690,6 +680,11 @@
               <FileName>app.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\HARDWARE\APP\app.h</FilePath>
+            </File>
+            <File>
+              <FileName>contest_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>../HARDWARE/APP/contest_config.h</FilePath>
             </File>
           </Files>
         </Group>
