@@ -1,3 +1,4 @@
+
 #ifndef __MOTOR_H
 #define __MOTOR_H
 
@@ -6,7 +7,7 @@
 
 #define CW  0
 #define CCW 1
-#define PULSE_PER_CIRCLE 20000
+#define PULSE_PER_CIRCLE 20000  //我是用的英鹏飞的42步进电机 最高20000脉冲
 
 typedef struct {
     GPIO_TypeDef *PUL_GPIO_Port;

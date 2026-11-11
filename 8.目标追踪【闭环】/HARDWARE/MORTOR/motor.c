@@ -61,6 +61,7 @@ void Motor_SinglePulse(Motor_HandleTypeDef *hmotor)
     for (volatile uint32_t i = 0; i < 140; i++) {
         __NOP();
     }
+    
     HAL_GPIO_WritePin(hmotor->PUL_GPIO_Port, hmotor->PUL_Pin, GPIO_PIN_RESET);
     for (volatile uint32_t i = 0; i < 70; i++) {
         __NOP();
@@ -77,8 +78,8 @@ void MotorCtrl_Init(MotorCtrl_TypeDef *mc, Motor_HandleTypeDef *hw)
     mc->home_steps = 0;
     mc->next_pulse_tick = 0;
     // 可将7000减小至6000，增大初始速度
-    mc->pulse_delay = 7000;
-    mc->target_delay = 7000;
+    mc->pulse_delay = 6000;
+    mc->target_delay = 6000;
     mc->accel_rate = 0;
     mc->last_accel_time = 0; // 初始化独立时间戳
     mc->is_running = 0;
@@ -97,8 +98,7 @@ void MotorCtrl_GoHome(MotorCtrl_TypeDef *mc, uint16_t delay_us)
         mc->is_running = 0;
         return;
     }
-    MotorCtrl_SetTarget(mc, (float)steps_to_home / PULSE_PER_CIRCLE, delay_us,
-                       (steps_to_home > 0) ? CW : CCW);
+    MotorCtrl_SetTarget(mc, (float)steps_to_home / PULSE_PER_CIRCLE, delay_us, (steps_to_home > 0) ? CW : CCW);
 }
 
 

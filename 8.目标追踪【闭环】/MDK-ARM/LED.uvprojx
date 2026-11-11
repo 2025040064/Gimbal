@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../HARDWARE/OLED;..\HARDWARE\MORTOR;..\HARDWARE\K230;..\HARDWARE\K230;..\HARDWARE\ADC;..\HARDWARE\MPU6050;..\HARDWARE\STABILIZER;..\HARDWARE\DWT_DELAY;..\HARDWARE\APP</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../HARDWARE/OLED;..\HARDWARE\MORTOR;..\HARDWARE\K230;..\HARDWARE\K230;..\HARDWARE\MPU6050;..\HARDWARE\STABILIZER;..\HARDWARE\DWT_DELAY;..\HARDWARE\APP</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -640,16 +640,6 @@
               <FileName>k230.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\HARDWARE\K230\k230.h</FilePath>
-            </File>
-            <File>
-              <FileName>adc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\ADC\adc.c</FilePath>
-            </File>
-            <File>
-              <FileName>adc.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\HARDWARE\ADC\adc.h</FilePath>
             </File>
             <File>
               <FileName>mpu6050.c</FileName>

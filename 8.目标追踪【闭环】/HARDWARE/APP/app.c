@@ -1,7 +1,6 @@
 #include "app.h"
 #include "oled.h"
 #include "k230.h"
-#include "adc.h"
 #include "stabilizer.h"
 #include "stdio.h"
 
@@ -10,21 +9,11 @@ MotorCtrl_TypeDef motorCtrl1;
 MotorCtrl_TypeDef motorCtrl2;
 char oled_buf[32];
 
-uint16_t joystick_x = 50;
-uint16_t joystick_y = 50;
-uint8_t joy_key = 1;
-
 uint8_t m1_run = 0;
 uint8_t m2_run = 0;
 
 MPU6050_Data_TypeDef mpu_data;
 uint32_t last_mpu_read = 0;
-uint8_t current_page = 0;
-
-uint8_t key_state = 0;
-uint32_t key_press_time = 0;
-uint32_t key_release_time = 0;
-uint8_t key_single_click = 0;
 
 uint8_t k230_data_valid = 0;
 
@@ -60,33 +49,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
 }
 
-// 按键处理
-void Key_Process(void)
-{
-    uint32_t now = HAL_GetTick();
-    switch (key_state) {
-        case 0:
-            if (joy_key == 0) { key_state = 1; key_press_time = now; }
-            break;
-        case 1:
-            if (now - key_press_time >= KEY_DEBOUNCE_TIME) {
-                if (joy_key == 0) key_state = 2;
-                else key_state = 0;
-            }
-            break;
-        case 2:
-            if (joy_key == 1) { key_state = 3; key_release_time = now; }
-            break;
-        case 3:
-            if (now - key_release_time >= KEY_DEBOUNCE_TIME) {
-                if (joy_key == 1) { key_single_click = 1; key_state = 0; }
-                else key_state = 2;
-            }
-            break;
-        default: key_state = 0; break;
-    }
-}
-
 // 所有电机停止
 void Motor_All_Stop(void)
 {
@@ -101,10 +63,8 @@ void Motor_All_Stop(void)
 // OLED显示更新
 void Update_OLED_Display(void)
 {
-    if (current_page == 0) {
-        if (joy_key == 0) sprintf(oled_buf, "Joy Key: Pressed ");
-        else sprintf(oled_buf, "Joy Key: Release ");
-        OLED_ShowString(0, 0, (uint8_t*)oled_buf, 16);
+    {
+        OLED_ShowString(0, 0, (uint8_t*)"Auto tracking", 16);
 
         if(k230_data_valid == 0) sprintf(oled_buf, "X:----  Y:----   ");
         else sprintf(oled_buf, "X:%-4d Y:%-4d", target_x, target_y);
@@ -116,8 +76,6 @@ void Update_OLED_Display(void)
 
         sprintf(oled_buf, "D1:%-3d D2:%-3d", motor1_delay_display, motor2_delay_display);
         OLED_ShowString(0, 6, (uint8_t*)oled_buf, 16);
-    } else {
-        MPU6050_Display(&mpu_data);
     }
 }
 

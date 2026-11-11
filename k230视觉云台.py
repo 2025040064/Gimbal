@@ -1,5 +1,3 @@
-"""CanMV K230 vision for white cards printed with a single black digit."""
-
 DETECT_WIDTH = 640
 DETECT_HEIGHT = 480
 VFLIP = True
@@ -494,10 +492,12 @@ def main():
 
         sensor = Sensor(width=DETECT_WIDTH, height=DETECT_HEIGHT)
         sensor.reset()
-        sensor.set_vflip(VFLIP)
+        sensor.set_vflip(VFLIP)  
         sensor.set_hmirror(HMIRROR)
+
         sensor.set_framesize(width=DETECT_WIDTH, height=DETECT_HEIGHT)
         sensor.set_pixformat(Sensor.RGB565)
+
         Display.init(
             Display.VIRT, width=DETECT_WIDTH, height=DETECT_HEIGHT, fps=30, to_ide=True
         )

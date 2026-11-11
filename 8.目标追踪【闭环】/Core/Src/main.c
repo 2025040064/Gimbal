@@ -4,7 +4,6 @@
 #include "motor.h"
 #include "oled.h"
 #include "k230.h"
-#include "adc.h"
 #include "mpu6050.h"
 #include "stabilizer.h"
 #include "dwt_delay.h"
@@ -21,7 +20,6 @@ int main(void)
     MX_GPIO_Init();
     MX_USART1_UART_Init();
     MX_TIM2_Init();
-    MX_ADC1_Init();
     
     // 模块初始化
     K230_Init();
@@ -41,8 +39,7 @@ int main(void)
     
     // 启动提示
     OLED_ShowString(0, 0, (uint8_t*)"System Ready...", 16);
-    OLED_ShowString(0, 2, (uint8_t*)"Click to switch", 16);
-    OLED_ShowString(0, 4, (uint8_t*)"display page", 16);
+    OLED_ShowString(0, 2, (uint8_t*)"Auto tracking", 16);
     HAL_Delay(1500);
     OLED_Clear();
     
@@ -64,18 +61,6 @@ int main(void)
             motorCtrl2.next_pulse_tick -= offset;
             __enable_irq();
             last_dwt_reset = HAL_GetTick();
-        }
-
-        // 读取输入
-        Joystick_Read(&joystick_x, &joystick_y);
-        joy_key = Joystick_K_Read();
-        Key_Process();
-
-        // 处理按键事件
-        if (key_single_click) {
-            current_page = (current_page + 1) % 2;
-            OLED_Clear();
-            key_single_click = 0;
         }
 
         // 读取MPU6050数据（100ms一次）
