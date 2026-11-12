@@ -1,6 +1,8 @@
 import importlib.util
+import os
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'k230视觉云台.py'
 if SCRIPT.exists():
@@ -35,6 +37,9 @@ def card_roi(rect):
 class DigitTests(unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(vision, '数字识别程序尚未创建')
+        self.exitpoint = patch.object(os, 'exitpoint', create=True)
+        self.exitpoint.start()
+        self.addCleanup(self.exitpoint.stop)
     def test_multi_cards_and_ten(self):
         from unittest.mock import patch
         a, b = (30, 30, 120, 140), (220, 40, 180, 150)
@@ -51,8 +56,10 @@ class DigitTests(unittest.TestCase):
         with patch.object(vision, 'recognize_digit', side_effect=lambda _, rect: {left.rect(): 2, right.rect(): 3}[rect]):
             self.assertEqual(vision.detect_cards(gray), [])
     def test_uart_frame_compatibility(self):
-        self.assertEqual(vision.coordinate_frame((200, 100, 100, 150)), b'\xaa\x55640,480,250,175,100,150\r\n')
-        self.assertEqual(vision.coordinate_frame(None), b'\xaa\x55640,480,-1,-1,-1,-1\r\n')
+        self.assertEqual(vision.coordinate_frame((200, 100, 100, 150), {1}, vision.VISION_TRACK, 1, 20),
+                         b'\xaa\x55640,480,250,175,100,150,2,2,1,20\r\n')
+        self.assertEqual(vision.coordinate_frame(None, (), vision.VISION_IDLE, None, 0),
+                         b'\xaa\x55640,480,-1,-1,-1,-1,0,0,-1,0\r\n')
     def test_digit_templates_match_exact_samples(self):
         for digit, templates in enumerate(vision.DIGIT_TEMPLATES):
             template = templates[0]

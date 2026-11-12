@@ -1,4 +1,5 @@
 led\main.o: ../Core/Src/main.c
+led\main.o: ..\HARDWARE\APP\app.h
 led\main.o: ../Core/Inc/main.h
 led\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 led\main.o: ../Core/Inc/stm32f1xx_hal_conf.h
@@ -28,15 +29,3 @@ led\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 led\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 led\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 led\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
-led\main.o: ../Core/Inc/usart.h
-led\main.o: ../Core/Inc/gpio.h
-led\main.o: ..\HARDWARE\MORTOR\motor.h
-led\main.o: ..\HARDWARE\DWT_DELAY\dwt_delay.h
-led\main.o: ../HARDWARE/OLED/oled.h
-led\main.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdlib.h
-led\main.o: ..\HARDWARE\K230\k230.h
-led\main.o: ..\HARDWARE\ADC\adc.h
-led\main.o: ..\HARDWARE\MPU6050\mpu6050.h
-led\main.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\math.h
-led\main.o: ..\HARDWARE\STABILIZER\stabilizer.h
-led\main.o: ..\HARDWARE\APP\app.h

@@ -2,16 +2,23 @@
 
 DETECT_WIDTH = 640
 DETECT_HEIGHT = 480
+SENSOR_WIDTH = 640
+SENSOR_HEIGHT = 480
+SENSOR_FPS = 30
 VFLIP = False
 HMIRROR = False
+CAMERA_ONLY = False  # Set to True to test the camera and IDE preview alone.
+ENABLE_IDE_PREVIEW = True
 
-UART2_TX_PIN = 5
-UART2_RX_PIN = 6
-COMMAND_INPUT = "none"  # "uart2" for a PC adapter; "usb" only on verified firmware.
-INITIAL_TARGET_ID = None  # Set to 0-10 only for bench testing.
+UART_TX_PIN = 50  # WonderMK external TX -> STM32 PB11.
+UART_RX_PIN = 51  # WonderMK external RX <- STM32 PB10.
+COMMAND_INPUT = "uart3"  # STM32 sends STOP / SCAN / ID,n through this port.
+INITIAL_TARGET_ID = None  # Wait for STM32's STOP handshake and ID command.
 SEND_INTERVAL_MS = 50
-SCAN_DURATION_MS = 60_000
+DETECT_INTERVAL_MS = 150
 CONFIRM_FRAMES = 3
+STATUS_INTERVAL_MS = 2000
+VISION_IDLE, VISION_SCAN, VISION_TRACK, VISION_FAULT = 0, 1, 2, 3
 
 WHITE_MIN = 90
 BLACK_MAX = 65
@@ -21,9 +28,6 @@ MAX_CARDS_PER_FRAME = 8
 
 FRAME_HEADER = b"\xAA\x55"
 FRAME_TAIL = b"\r\n"
-NO_TARGET_FRAME = FRAME_HEADER + "{},{},-1,-1,-1,-1".format(
-    DETECT_WIDTH, DETECT_HEIGHT
-).encode() + FRAME_TAIL
 
 DIGIT_COLUMNS = 12
 DIGIT_ROWS = 18
@@ -261,12 +265,14 @@ def digit_mask(gray, rect):
 
 
 def recognize_digit(gray, rect):
+    import os
     rows = digit_mask(gray, rect)
     ratio = rect[2] * 100 // rect[3]
     best_id = None
     best_distance = second_distance = MAX_MATCH_DISTANCE + MIN_MATCH_MARGIN
 
     for digit, templates in enumerate(DIGIT_TEMPLATES):
+        os.exitpoint()
         digit_distance = second_distance
         for template in templates:
             distance = abs(ratio - template[0]) // 3
@@ -331,6 +337,8 @@ def card_number(gray, rect):
 
 
 def detect_cards(gray):
+    import os
+    os.exitpoint()
     blobs = gray.find_blobs(
         [(WHITE_MIN, 255)], x_stride=3, y_stride=2,
         pixels_threshold=110, area_threshold=MIN_CARD_SIDE * MIN_CARD_SIDE
@@ -346,6 +354,7 @@ def detect_cards(gray):
     cards.sort(key=lambda blob: blob.pixels(), reverse=True)
     results = []
     for card in cards[:MAX_CARDS_PER_FRAME]:
+        os.exitpoint()
         rect = card.rect()
         number = card_number(gray, rect)
         if number is not None:
@@ -403,13 +412,42 @@ class USBCommandInput:
         return data
 
 
+def open_uart():
+    print("[BOOT] UART_IMPORT")
+    from machine import FPIOA, UART
+    print("[OK] UART_IMPORT")
+    print("[BOOT] UART_FPIOA")
+    fpioa = FPIOA()
+    print("[BOOT] UART_TX GPIO", UART_TX_PIN)
+    fpioa.set_function(UART_TX_PIN, FPIOA.UART3_TXD, oe=1)
+    print("[OK] UART_TX")
+    if COMMAND_INPUT == "uart3":
+        print("[BOOT] UART_RX GPIO", UART_RX_PIN)
+        fpioa.set_function(UART_RX_PIN, FPIOA.UART3_RXD, ie=1)
+        print("[OK] UART_RX")
+    print("[BOOT] UART_OPEN UART3 115200 8N1")
+    uart = UART(UART.UART3, baudrate=115200, bits=UART.EIGHTBITS,
+                parity=UART.PARITY_NONE, stop=UART.STOPBITS_ONE)
+    print("[OK] UART3_READY")
+    return uart
+
+
+class UARTCommandInput:
+    def __init__(self, uart):
+        self.uart = uart
+
+    def __call__(self, limit):
+        available = self.uart.any()
+        return self.uart.read(min(limit, available)) if available else None
+
+
 def open_command_input(uart):
     if COMMAND_INPUT == "none":
         return None
-    if COMMAND_INPUT == "uart2":
-        return uart.read
+    if COMMAND_INPUT == "uart3":
+        return UARTCommandInput(uart)
     if COMMAND_INPUT != "usb":
-        raise ValueError("COMMAND_INPUT must be none, uart2 or usb")
+        raise ValueError("COMMAND_INPUT must be none, uart3 or usb")
     try:
         import sys
         try:
@@ -432,6 +470,8 @@ class VisionSession:
         self.seen = set()
         self.streaks = {}
         self.scan_result = None
+        self.mode = VISION_IDLE
+        self.sequence = 0
 
     def command(self, line, now):
         if line == b"SCAN":
@@ -440,15 +480,19 @@ class VisionSession:
             self.scan_started = now
             self.seen.clear()
             self.target_id = None
+            self.mode = VISION_SCAN
         elif line == b"STOP":
             self.finish_scan()
             self.target_id = None
-        elif line == b"ID,10" or (len(line) == 4 and line[:3] == b"ID," and 48 <= line[3] <= 57):
-            target_id = 10 if line == b"ID,10" else line[3] - 48
+            self.mode = VISION_IDLE
+        elif len(line) == 4 and line[:3] == b"ID," and 48 <= line[3] <= 57:
+            # The STM32 contest protocol selects IDs 0-9; 10 is still detected.
+            target_id = line[3] - 48
             if target_id == self.target_id:
                 return True
             self.target_id = target_id
             self.finish_scan()
+            self.mode = VISION_TRACK
         else:
             return False
         self.streaks = {}
@@ -465,8 +509,8 @@ class VisionSession:
         return result
 
     def observe(self, detections, now):
-        if self.scan_started is not None and self.ticks_diff(now, self.scan_started) >= SCAN_DURATION_MS:
-            self.finish_scan()
+        # STM32 owns the scan deadline. Stay in SCAN until its next command.
+        self.sequence = (self.sequence + 1) & 0xFFFF
 
         by_id = {}
         duplicates = set()
@@ -495,22 +539,34 @@ class VisionSession:
             self.seen.update(new_ids)
         return confirmed, new_ids, self.take_scan_result()
 
+    def packet(self, confirmed):
+        selected = confirmed.get(self.target_id) if self.mode == VISION_TRACK else None
+        return coordinate_frame(selected, confirmed, self.mode, self.target_id, self.sequence)
 
-def coordinate_frame(rect):
+
+def coordinate_frame(rect, ids, mode, target_id, sequence):
+    mask = 0
+    for digit in ids:
+        mask |= 1 << digit
+    if mode != VISION_TRACK:
+        rect, target_id = None, -1
     if rect is None:
-        return NO_TARGET_FRAME
-    cx, cy = center(rect)
-    payload = "{},{},{},{},{},{}".format(
-        DETECT_WIDTH, DETECT_HEIGHT, cx, cy, rect[2], rect[3]
+        cx = cy = width = height = -1
+    else:
+        cx, cy = center(rect)
+        width, height = rect[2:]
+    payload = "{},{},{},{},{},{},{},{},{},{}".format(
+        DETECT_WIDTH, DETECT_HEIGHT, cx, cy, width, height,
+        mask, mode, target_id, sequence
     )
     return FRAME_HEADER + payload.encode() + FRAME_TAIL
 
 
-def send_coordinates(uart, rect):
-    frame = coordinate_frame(rect)
+def send_coordinates(uart, session, confirmed):
+    frame = session.packet(confirmed)
     sent = uart.write(frame)
     if sent != len(frame):
-        raise OSError("UART2 short write: {} of {}".format(sent, len(frame)))
+        raise OSError("UART3 short write: {} of {}".format(sent, len(frame)))
 
 
 def draw_overlay(frame, confirmed, target_id):
@@ -535,120 +591,178 @@ def report_scan_result(result):
         print("SCAN_RESULT,{}".format(",".join([str(digit) for digit in result])))
 
 
+
 def main():
-    import image
+    import gc
     import os
     import time
-    from machine import FPIOA, UART
-    from media.display import Display
     from media.media import MediaManager
     from media.sensor import Sensor
 
     if INITIAL_TARGET_ID is not None and (
-        type(INITIAL_TARGET_ID) is not int or not 0 <= INITIAL_TARGET_ID <= 10
+        type(INITIAL_TARGET_ID) is not int or not 0 <= INITIAL_TARGET_ID <= 9
     ):
-        raise ValueError("INITIAL_TARGET_ID must be None or a number from 0 to 10")
+        raise ValueError("INITIAL_TARGET_ID must be None or 0-9 for STM32")
 
-    uart = sensor = None
-    display_ready = media_ready = False
+    uart = sensor = gray = None
+    media_ready = sensor_running = False
+    session = VisionSession(time.ticks_diff)
+    reader = CommandReader()
+    confirmed = {}
+    read_commands = None
+    stage = "START"
     try:
-        fpioa = FPIOA()
-        fpioa.set_function(UART2_TX_PIN, FPIOA.UART2_TXD)
-        if COMMAND_INPUT == "uart2":
-            fpioa.set_function(UART2_RX_PIN, FPIOA.UART2_RXD)
-        uart = UART(
-            UART.UART2, baudrate=115200, bits=UART.EIGHTBITS,
-            parity=UART.PARITY_NONE, stop=UART.STOPBITS_ONE
-        )
+        print("[BOOT] WONDERMK_LINK_V3 640x480 UART3 GPIO50/51")
+        print("[BOOT] CAMERA_ONLY={} IDE_PREVIEW={}".format(CAMERA_ONLY, ENABLE_IDE_PREVIEW))
+        # Set up the external UART before starting the camera's capture engine.
+        if not CAMERA_ONLY:
+            stage = "UART_INIT"
+            uart = open_uart()
+            read_commands = open_command_input(uart)
+            if INITIAL_TARGET_ID is not None:
+                session.command("ID,{}".format(INITIAL_TARGET_ID).encode(), time.ticks_ms())
+            stage = "UART_FIRST_TX"
+            print("[BOOT]", stage)
+            send_coordinates(uart, session, confirmed)
+            print("[OK] UART_FIRST_TX (local write only)")
 
-        sensor = Sensor(width=DETECT_WIDTH, height=DETECT_HEIGHT)
+        stage = "SENSOR_CONFIG"
+        print("[BOOT]", stage)
+        sensor = Sensor(width=SENSOR_WIDTH, height=SENSOR_HEIGHT, fps=SENSOR_FPS)
         sensor.reset()
         sensor.set_vflip(VFLIP)
         sensor.set_hmirror(HMIRROR)
-        sensor.set_framesize(width=DETECT_WIDTH, height=DETECT_HEIGHT)
-        sensor.set_pixformat(Sensor.RGB565)
-        Display.init(
-            Display.VIRT, width=DETECT_WIDTH, height=DETECT_HEIGHT, fps=30, to_ide=True
-        )
-        display_ready = True
+        sensor.set_framesize(width=DETECT_WIDTH, height=DETECT_HEIGHT, chn=0)
+        sensor.set_pixformat(Sensor.RGB565, chn=0)
+        stage = "MEDIA_INIT"
+        print("[BOOT]", stage)
         MediaManager.init()
         media_ready = True
-        gray = image.Image(DETECT_WIDTH, DETECT_HEIGHT, image.GRAYSCALE)
+        stage = "SENSOR_RUN"
+        print("[BOOT]", stage)
         sensor.run()
+        sensor_running = True
+        print("[OK]", stage)
+        time.sleep_ms(200)
 
-        reader = CommandReader()
-        read_commands = open_command_input(uart)
-        session = VisionSession(time.ticks_diff)
-        last_send = None
+        first_frame = first_detection = True
+        first_frame_retries = 2
+        last_send = last_detect = None
         tracked_id = None
-        if INITIAL_TARGET_ID is not None:
-            session.command("ID,{}".format(INITIAL_TARGET_ID).encode(), time.ticks_ms())
-        input_status = COMMAND_INPUT
-        if read_commands is None and COMMAND_INPUT != "none":
-            input_status = "unavailable"
-        print("READY UART2 TX 115200 8N1. Command input:", input_status)
-        if read_commands is not None:
-            print("Commands: SCAN, ID,0-10, STOP (CR, LF or CRLF).")
-
+        last_status = time.ticks_ms()
+        frames = command_count = detect_ms = 0
+        print("[BOOT] FIRST_SNAPSHOT")
         while True:
             os.exitpoint()
-            data = None
+            stage = "COMMAND_READ"
             if read_commands is not None:
-                try:
-                    data = read_commands(32)
-                except (OSError, TypeError, ValueError) as error:
-                    print("COMMAND_INPUT_ERROR", error)
-                    read_commands = None
-                    session.command(b"STOP", time.ticks_ms())
-                    report_scan_result(session.take_scan_result())
-                    send_coordinates(uart, None)
-                    last_send = time.ticks_ms()
-            for command in reader.feed(data):
+                for command in reader.feed(read_commands(32)):
+                    before = (session.mode, session.target_id)
+                    if session.command(command, time.ticks_ms()):
+                        command_count += 1
+                        if command_count == 1 or before != (session.mode, session.target_id):
+                            print("[RX]", command.decode())
+                        if before != (session.mode, session.target_id) or command == b"STOP":
+                            confirmed = {}
+                            last_detect = None
+                        report_scan_result(session.take_scan_result())
+                        stage = "COMMAND_REPLY"
+                        send_coordinates(uart, session, confirmed)
+                        last_send = time.ticks_ms()
+                    else:
+                        print("[RX] INVALID_COMMAND", command)
+
+            stage = "SNAPSHOT"
+            try:
+                frame = sensor.snapshot(chn=0)
+            except RuntimeError as error:
+                if not first_frame or not first_frame_retries or not str(error).endswith("failed(3)"):
+                    raise
+                first_frame_retries -= 1
+                print("[RETRY] FIRST_SNAPSHOT", error)
+                time.sleep_ms(100)
+                continue
+            frames += 1
+            if first_frame:
+                print("[OK] FIRST_SNAPSHOT", frame.width(), frame.height())
+                if ENABLE_IDE_PREVIEW:
+                    stage = "FIRST_PREVIEW"
+                    frame.compress_for_ide()
+                    print("[OK] FIRST_PREVIEW")
+                first_frame = False
+                if not CAMERA_ONLY:
+                    stage = "GRAY_INIT"
+                    print("[BOOT]", stage)
+                    import image
+                    gc.collect()
+                    gray = image.Image(DETECT_WIDTH, DETECT_HEIGHT, image.GRAYSCALE)
+                    print("[OK] GRAY_READY")
+                    print("[LINK] Waiting for STM32 STOP / ID,n on RX GPIO51")
+                # compress_for_ide may reuse its image buffer; capture a fresh
+                # frame before passing pixels to recognition.
+                continue
+
+            if not CAMERA_ONLY:
                 now = time.ticks_ms()
-                previous_id = session.target_id
-                if session.command(command, now):
-                    print("COMMAND", command.decode())
-                    report_scan_result(session.take_scan_result())
-                    if previous_id is not None and previous_id != session.target_id:
-                        send_coordinates(uart, None)
-                        last_send = now
-                else:
-                    print("INVALID_COMMAND")
+                if last_detect is None or time.ticks_diff(now, last_detect) >= DETECT_INTERVAL_MS:
+                    stage = "RECOGNITION"
+                    if first_detection:
+                        print("[BOOT] FIRST_DETECTION")
+                    started = time.ticks_ms()
+                    gray.draw_image(frame, 0, 0)
+                    detections = detect_cards(gray)
+                    now = time.ticks_ms()
+                    detect_ms = time.ticks_diff(now, started)
+                    confirmed, new_ids, scan_result = session.observe(detections, now)
+                    last_detect = now
+                    if first_detection:
+                        print("[OK] FIRST_DETECTION", detect_ms, "ms")
+                        first_detection = False
+                    for digit in new_ids:
+                        print("FOUND,{}".format(digit))
+                    report_scan_result(scan_result)
 
-            frame = sensor.snapshot()
-            gray.draw_image(frame, 0, 0)
-            detections = detect_cards(gray)
+                active_id = session.target_id if session.target_id in confirmed else None
+                if tracked_id != active_id:
+                    if tracked_id is not None:
+                        print("LOST,{}".format(tracked_id))
+                    if active_id is not None:
+                        print("TRACK,{}".format(active_id))
+                    tracked_id = active_id
+                stage = "UART_TX"
+                if last_send is None or time.ticks_diff(now, last_send) >= SEND_INTERVAL_MS:
+                    send_coordinates(uart, session, confirmed)
+                    last_send = now
+                draw_overlay(frame, confirmed, active_id)
+
+            if ENABLE_IDE_PREVIEW:
+                stage = "PREVIEW"
+                frame.compress_for_ide()
             now = time.ticks_ms()
-            confirmed, new_ids, scan_result = session.observe(detections, now)
-            selected = confirmed.get(session.target_id)
-            if last_send is None or time.ticks_diff(now, last_send) >= SEND_INTERVAL_MS:
-                send_coordinates(uart, selected)
-                last_send = now
-
-            active_id = session.target_id if selected is not None else None
-            if tracked_id != active_id:
-                if tracked_id is not None:
-                    print("LOST,{}".format(tracked_id))
-                if active_id is not None:
-                    print("TRACK,{}".format(active_id))
-                tracked_id = active_id
-            for digit in new_ids:
-                print("FOUND,{}".format(digit))
-            report_scan_result(scan_result)
-
-            draw_overlay(frame, confirmed, active_id)
-            Display.show_image(frame)
+            if time.ticks_diff(now, last_status) >= STATUS_INTERVAL_MS:
+                print("[STATUS] frames={} mode={} id={} rx_commands={} seq={} detect_ms={} cards={}".format(
+                    frames, session.mode, session.target_id, command_count,
+                    session.sequence, detect_ms, sorted(confirmed)))
+                last_status = now
+            del frame
+            time.sleep_ms(1)
 
     except KeyboardInterrupt:
         print("STOPPED")
+    except Exception as error:
+        # IDE interrupt must leave the loop; never silently disable detection.
+        print("[ERROR]", stage, error)
+        raise
     finally:
+        print("[EXIT] cleanup")
         if uart is not None:
-            cleanup(send_coordinates, uart, None)
+            session.mode = VISION_FAULT
+            cleanup(send_coordinates, uart, session, {})
             cleanup(uart.deinit)
-        if sensor is not None:
+        if sensor_running:
             cleanup(sensor.stop)
-        if display_ready:
-            cleanup(Display.deinit)
+        gray = None
+        gc.collect()
         if media_ready:
             os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
             time.sleep_ms(100)

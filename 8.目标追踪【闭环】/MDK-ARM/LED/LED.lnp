@@ -23,7 +23,6 @@
 "led\oled.o"
 "led\motor.o"
 "led\k230.o"
-"led\adc.o"
 "led\mpu6050.o"
 "led\stabilizer.o"
 "led\dwt_delay.o"

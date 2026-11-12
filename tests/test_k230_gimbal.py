@@ -27,11 +27,43 @@ class K230GimbalTests(unittest.TestCase):
             result = self.session.observe(cards, start + 33 * frame)
         return result
 
-    def test_select_id_zero_over_larger_distractor_and_keep_wire_format(self):
+    def test_camera_only_previews_without_uart_or_recognition(self):
+        sensor = Mock()
+        frames = [Mock(), Mock()]
+        sensor.snapshot.side_effect = [RuntimeError("sensor(0) snapshot chn(0) failed(3)"),
+                                       *frames, KeyboardInterrupt()]
+        media = Mock()
+        modules = {
+            "image": None,
+            "machine": None,
+            "media": SimpleNamespace(),
+            "media.sensor": SimpleNamespace(Sensor=Mock(return_value=sensor)),
+            "media.display": None,
+            "media.media": SimpleNamespace(MediaManager=media),
+        }
+        with (
+            patch.dict(sys.modules, modules),
+            patch.multiple(time, sleep_ms=Mock(), ticks_ms=lambda: 0,
+                           ticks_diff=lambda a, b: a-b, create=True),
+            patch.multiple(os, exitpoint=Mock(), EXITPOINT_ENABLE_SLEEP=1, create=True),
+            patch.object(vision, "CAMERA_ONLY", True, create=True),
+            redirect_stdout(io.StringIO()) as console,
+        ):
+            vision.main()
+
+        modules["media.sensor"].Sensor.assert_called_once_with(width=640, height=480, fps=30)
+        sensor.run.assert_called_once_with()
+        sensor.stop.assert_called_once_with()
+        media.deinit.assert_called_once_with()
+        for frame in frames:
+            frame.compress_for_ide.assert_called_once_with()
+        self.assertIn("[OK] FIRST_PREVIEW", console.getvalue())
+
+    def test_select_id_zero_over_larger_distractor(self):
         self.assertTrue(self.session.command(b"ID,0", 0))
         confirmed, _, _ = self.confirm([(0, self.first_card), (9, self.larger_card)])
-        frame = vision.coordinate_frame(confirmed.get(self.session.target_id))
-        self.assertEqual(frame, b"\xAA\x55640,480,45,55,30,40\r\n")
+        frame = self.session.packet(confirmed)
+        self.assertEqual(frame, b"\xAA\x55640,480,45,55,30,40,513,2,0,3\r\n")
 
     def test_loss_sends_no_target_and_reacquires_only_original_id(self):
         self.session.command(b"ID,2", 0)
@@ -39,8 +71,8 @@ class K230GimbalTests(unittest.TestCase):
         confirmed, _, _ = self.session.observe([(8, self.larger_card)], 2000)
         self.assertEqual(self.session.target_id, 2)
         self.assertEqual(
-            vision.coordinate_frame(confirmed.get(self.session.target_id)),
-            b"\xAA\x55640,480,-1,-1,-1,-1\r\n",
+            self.session.packet(confirmed),
+            b"\xAA\x55640,480,-1,-1,-1,-1,256,2,2,4\r\n",
         )
         new_box = (390, 255, 40, 50)
         for frame in range(vision.CONFIRM_FRAMES - 1):
@@ -57,17 +89,18 @@ class K230GimbalTests(unittest.TestCase):
         confirmed, _, _ = self.confirm([(6, self.first_card), (6, self.larger_card)], 300)
         self.assertNotIn(6, confirmed)
 
-    def test_scan_reports_unique_ids_and_freezes_at_deadline(self):
+    def test_scan_reports_unique_ids_until_stm32_stops_it(self):
         self.assertTrue(self.session.command(b"SCAN", 100))
         _, new_ids, _ = self.confirm([(2, self.first_card), (0, self.larger_card)], 100)
         self.assertEqual(new_ids, (0, 2))
         _, new_ids, _ = self.session.observe([(2, self.first_card)], 400)
         self.assertEqual(new_ids, ())
-        _, new_ids, result = self.session.observe([(9, self.first_card)], 60100)
-        self.assertEqual(new_ids, ())
-        self.assertEqual(result, (0, 2))
-        _, _, result = self.session.observe([], 60101)
+        _, _, result = self.session.observe([], 60100)
         self.assertIsNone(result)
+        self.assertEqual(self.session.mode, vision.VISION_SCAN)
+        self.session.command(b"STOP", 60101)
+        self.assertEqual(self.session.take_scan_result(), (0, 2))
+        self.assertIsNone(self.session.take_scan_result())
         self.session.command(b"SCAN", 60200)
         _, new_ids, _ = self.confirm([(0, self.first_card)], 60200)
         self.assertEqual(new_ids, (0,))
@@ -88,7 +121,7 @@ class K230GimbalTests(unittest.TestCase):
     def test_default_preview_does_not_open_command_input(self):
         uart = Mock()
         select = SimpleNamespace(poll=Mock())
-        with patch.dict(sys.modules, {"select": select}):
+        with patch.dict(sys.modules, {"select": select}), patch.object(vision, "COMMAND_INPUT", "none"):
             self.assertIsNone(vision.open_command_input(uart))
         select.poll.assert_not_called()
         uart.read.assert_not_called()
@@ -109,8 +142,9 @@ class K230GimbalTests(unittest.TestCase):
         self.assertEqual(list(reader.feed(b"0\r")), [b"ID,0"])
         self.assertEqual(list(reader.feed(b"\nSCAN\n")), [b"SCAN"])
         self.assertEqual(list(reader.feed(b"1234567890ID,6\nID,9\n")), [b"ID,9"])
-        self.assertTrue(self.session.command(b"ID,10", 0))
-        self.assertEqual(self.session.target_id, 10)
+        self.assertFalse(self.session.command(b"ID,10", 0))
+        self.assertTrue(self.session.command(b"ID,9", 0))
+        self.assertEqual(self.session.target_id, 9)
         self.assertTrue(self.session.command(b"STOP", 0))
         self.assertFalse(self.session.command(b"ID,-1", 0))
         self.assertIsNone(self.session.target_id)
@@ -126,54 +160,42 @@ class K230GimbalTests(unittest.TestCase):
         confirmed, _, _ = self.session.observe([(3, self.first_card)], 302)
         self.assertNotIn(3, confirmed)
 
-    def test_scan_deadline_across_device_tick_wrap(self):
+    def test_scan_waits_for_stop_across_device_tick_wrap(self):
         period = 1 << 20
         session = vision.VisionSession(
             lambda now, before: (now - before + period // 2) % period - period // 2
         )
-        start = period - 100
-        session.command(b"SCAN", start)
-        self.assertIsNone(session.observe([], 59899)[2])
-        self.assertEqual(session.observe([], 59900)[2], ())
+        session.command(b"SCAN", period - 100)
+        self.assertIsNone(session.observe([], 59900)[2])
+        session.command(b"STOP", 60000)
+        self.assertEqual(session.take_scan_result(), ())
 
-    def test_main_previews_each_frame_and_sends_only_selected_coordinates(self):
+    def test_main_receives_stm32_commands_and_sends_selected_target(self):
         now = 0
-        preview = {}
-        writes = []
-
-        def snapshot():
-            nonlocal now
-            now += 25
-            return Mock()
-
-        def show_image(frame):
-            preview[now] = [call.args[0] for call in frame.draw_rectangle.call_args_list]
-            if now == 325:
-                raise KeyboardInterrupt
-
-        def write(frame):
-            writes.append((now, frame))
-            return len(frame)
-
-        def detect(_):
-            cards = [(8, self.larger_card)]
-            if now != 250:
-                cards.append((0, self.first_card))
-            return cards
-
+        previews, writes = [], []
         uart = Mock()
-        read_commands = Mock(side_effect=[b""] * 4 + [b"ID,", b"0\r\n"] + [b""] * 7)
-        uart.write.side_effect = write
+        pending = [b"STOP\n", b"ID,0\n"]
+        uart.any.side_effect = lambda: len(pending[0]) if pending else 0
+        uart.read.side_effect = lambda size: pending.pop(0)
+        uart.write.side_effect = lambda frame: writes.append((now, frame)) or len(frame)
+
+        def snapshot(chn=0):
+            nonlocal now
+            now += 50
+            if now > 700:
+                raise KeyboardInterrupt()
+            frame = Mock()
+            frame.compress_for_ide.side_effect = lambda: previews.append(now)
+            return frame
+
         sensor = Mock()
         sensor.snapshot.side_effect = snapshot
-        display = Mock()
-        display.show_image.side_effect = show_image
         modules = {
             "image": SimpleNamespace(Image=Mock(), GRAYSCALE=0),
             "machine": SimpleNamespace(FPIOA=Mock(), UART=Mock(return_value=uart)),
             "media": SimpleNamespace(),
             "media.sensor": SimpleNamespace(Sensor=Mock(return_value=sensor)),
-            "media.display": SimpleNamespace(Display=display),
+            "media.display": None,
             "media.media": SimpleNamespace(MediaManager=Mock()),
         }
         with (
@@ -181,38 +203,22 @@ class K230GimbalTests(unittest.TestCase):
             patch.multiple(time, ticks_ms=lambda: now, ticks_diff=lambda a, b: a - b,
                            sleep_ms=Mock(), create=True),
             patch.multiple(os, exitpoint=Mock(), EXITPOINT_ENABLE_SLEEP=1, create=True),
-            patch.object(vision, "detect_cards", side_effect=detect),
-            patch.object(vision, "open_command_input", return_value=read_commands),
+            patch.object(vision, "detect_cards", return_value=[(0, self.first_card), (8, self.larger_card)]),
             redirect_stdout(io.StringIO()) as console,
         ):
             vision.main()
-
-        self.assertEqual(list(preview), list(range(25, 326, 25)))
-        self.assertIn(self.first_card, preview[75])
-        self.assertIn(self.first_card, preview[200])
-        self.assertNotIn(200, [stamp for stamp, _ in writes])
-        self.assertNotIn(self.first_card, preview[250])
-        self.assertIn(self.first_card, preview[325])
-        selected = b"\xAA\x55640,480,45,55,30,40\r\n"
-        missing = b"\xAA\x55640,480,-1,-1,-1,-1\r\n"
-        self.assertEqual(writes, [
-            (25, missing), (75, missing), (125, missing), (175, missing),
-            (225, selected), (275, missing), (325, selected), (325, missing)
-        ])
-        self.assertIn("LOST,0", console.getvalue())
-        self.assertEqual(console.getvalue().count("TRACK,0"), 2)
-        display.init.assert_called_once_with(display.VIRT, width=640, height=480, fps=30, to_ide=True)
-        uart.deinit.assert_called_once_with()
-        machine = modules["machine"]
-        machine.FPIOA.return_value.set_function.assert_any_call(
-            5, machine.FPIOA.UART2_TXD
-        )
-        machine.FPIOA.return_value.set_function.assert_called_once()
-        uart.read.assert_not_called()
-        machine.UART.assert_called_once_with(
-            machine.UART.UART2, baudrate=115200, bits=machine.UART.EIGHTBITS,
-            parity=machine.UART.PARITY_NONE, stop=machine.UART.STOPBITS_ONE
-        )
+        self.assertEqual(previews, list(range(50, 701, 50)))
+        payloads = [packet[2:-2].split(b",") for _, packet in writes]
+        self.assertTrue(all(len(fields) == 10 for fields in payloads))
+        self.assertTrue(any(fields[7:9] == [b"0", b"-1"] for fields in payloads))
+        tracked = [fields for fields in payloads if fields[2] == b"45"]
+        self.assertTrue(tracked)
+        self.assertTrue(all(fields[2:6] == [b"45", b"55", b"30", b"40"] for fields in tracked))
+        self.assertTrue(all(fields[7:9] == [b"2", b"0"] for fields in tracked))
+        self.assertEqual(payloads[-1][7], b"3")  # Shutdown reports FAULT.
+        self.assertIn("TRACK,0", console.getvalue())
+        self.assertIn("[RX] ID,0", console.getvalue())
+        uart.deinit.assert_called_once()
 
 
 if __name__ == "__main__":

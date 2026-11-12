@@ -1,7 +1,8 @@
 Dependencies for Project 'LED', Target 'LED': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::.\ARMCC
 F (startup_stm32f103xb.s)(0x657F664C)(--cpu Cortex-M3 -g --apcs=interwork --pd "__MICROLIB SETA 1"-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F10X_MD SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f103xb.lst --xref -o led\startup_stm32f103xb.o --depend led\startup_stm32f103xb.d)
-F (../Core/Src/main.c)(0x6ADDA230)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\main.o --omf_browse led\main.crf --depend led\main.d)
+F (../Core/Src/main.c)(0x6AF28578)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\main.o --omf_browse led\main.crf --depend led\main.d)
+I (..\HARDWARE\APP\app.h)(0x6AF28578)
 I (../Core/Inc/main.h)(0x657F664C)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
@@ -30,18 +31,6 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-I (../Core/Inc/usart.h)(0x657F664C)
-I (../Core/Inc/gpio.h)(0x657F664C)
-I (..\HARDWARE\MORTOR\motor.h)(0x6ADDA231)
-I (..\HARDWARE\DWT_DELAY\dwt_delay.h)(0x6ADDA231)
-I (../HARDWARE/OLED/oled.h)(0x6ADDA231)
-I (E:\Legion\Documents\ARM\ARMCC\include\stdlib.h)(0x5E8E3CC2)
-I (..\HARDWARE\K230\k230.h)(0x6ADDA231)
-I (..\HARDWARE\ADC\adc.h)(0x6A293A3A)
-I (..\HARDWARE\MPU6050\mpu6050.h)(0x6ADDA231)
-I (E:\Legion\Documents\ARM\ARMCC\include\math.h)(0x5E8E3CC2)
-I (..\HARDWARE\STABILIZER\stabilizer.h)(0x6A293A3A)
-I (..\HARDWARE\APP\app.h)(0x6ADDA230)
 F (../Core/Src/gpio.c)(0x657F664C)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\gpio.o --omf_browse led\gpio.crf --depend led\gpio.d)
 I (../Core/Inc/gpio.h)(0x657F664C)
 I (../Core/Inc/main.h)(0x657F664C)
@@ -73,7 +62,7 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
 F (../Core/Src/usart.c)(0x6ADDA230)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\usart.o --omf_browse led\usart.crf --depend led\usart.d)
-I (../Core/Inc/usart.h)(0x657F664C)
+I (../Core/Inc/usart.h)(0x6AF285FE)
 I (../Core/Inc/main.h)(0x657F664C)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
@@ -161,7 +150,7 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-F (D:\(!解压缩密码是VCC)(下载winRAR解压)STM32小车相关资料V3.3.0_3(更新openmv 电磁 添加FreeRTOS 更新论文) (20250330)\STM32小车相关资料V3.3.0\01程序资料\MyCode_V3.3.0\04_LED\LED\Core\Inc\usart.h)(0x00000000)()
+F (../Core/Inc/usart.h)(0x6AF285FE)()
 F (../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c)(0x657F65FA)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\stm32f1xx_hal_gpio_ex.o --omf_browse led\stm32f1xx_hal_gpio_ex.crf --depend led\stm32f1xx_hal_gpio_ex.d)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
@@ -614,8 +603,8 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
 I (..\HARDWARE\OLED\oledfont.h)(0x6ADDA231)
-F (..\HARDWARE\MORTOR\motor.c)(0x6ADDA231)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\motor.o --omf_browse led\motor.crf --depend led\motor.d)
-I (..\HARDWARE\MORTOR\motor.h)(0x6ADDA231)
+F (..\HARDWARE\MORTOR\motor.c)(0x6AF284FC)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\motor.o --omf_browse led\motor.crf --depend led\motor.d)
+I (..\HARDWARE\MORTOR\motor.h)(0x6AF284FC)
 I (../Core/Inc/main.h)(0x657F664C)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
@@ -644,44 +633,13 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-I (..\HARDWARE\DWT_DELAY\dwt_delay.h)(0x6ADDA231)
-F (..\HARDWARE\MORTOR\motor.h)(0x6ADDA231)()
-F (..\HARDWARE\K230\k230.c)(0x6ADDA2FF)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\k230.o --omf_browse led\k230.crf --depend led\k230.d)
-I (..\HARDWARE\K230\k230.h)(0x6ADDA231)
-I (../Core/Inc/main.h)(0x657F664C)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
-I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h)(0x657F65FA)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h)(0x657F65FC)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h)(0x657F65FC)
-I (../Drivers/CMSIS/Include/core_cm3.h)(0x657F664A)
+F (..\HARDWARE\MORTOR\motor.h)(0x6AF284FC)()
+F (..\HARDWARE\K230\k230.c)(0x6AF284FC)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\k230.o --omf_browse led\k230.crf --depend led\k230.d)
+I (..\HARDWARE\K230\k230.h)(0x6AF284FC)
 I (E:\Legion\Documents\ARM\ARMCC\include\stdint.h)(0x5E8E3CC2)
-I (../Drivers/CMSIS/Include/cmsis_version.h)(0x657F664A)
-I (../Drivers/CMSIS/Include/cmsis_compiler.h)(0x657F664A)
-I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x657F664C)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h)(0x657F65FC)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h)(0x657F65FA)
-I (E:\Legion\Documents\ARM\ARMCC\include\stddef.h)(0x5E8E3CC2)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_exti.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-I (../Core/Inc/usart.h)(0x657F664C)
 I (E:\Legion\Documents\ARM\ARMCC\include\string.h)(0x5E8E3CC2)
-I (E:\Legion\Documents\ARM\ARMCC\include\stdio.h)(0x5E8E3CC2)
-F (..\HARDWARE\K230\k230.h)(0x6ADDA231)()
-F (..\HARDWARE\ADC\adc.c)(0x6A293A3A)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\adc.o --omf_browse led\adc.crf --depend led\adc.d)
-I (..\HARDWARE\ADC\adc.h)(0x6A293A3A)
+I (../Core/Inc/usart.h)(0x6AF285FE)
+I (../Core/Inc/main.h)(0x657F664C)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h)(0x657F65FA)
@@ -689,7 +647,6 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h)(0x657F65FA)
 I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h)(0x657F65FC)
 I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h)(0x657F65FC)
 I (../Drivers/CMSIS/Include/core_cm3.h)(0x657F664A)
-I (E:\Legion\Documents\ARM\ARMCC\include\stdint.h)(0x5E8E3CC2)
 I (../Drivers/CMSIS/Include/cmsis_version.h)(0x657F664A)
 I (../Drivers/CMSIS/Include/cmsis_compiler.h)(0x657F664A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x657F664C)
@@ -709,7 +666,7 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-F (..\HARDWARE\ADC\adc.h)(0x6A293A3A)()
+F (..\HARDWARE\K230\k230.h)(0x6AF284FC)()
 F (..\HARDWARE\MPU6050\mpu6050.c)(0x6ADDA2FF)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\mpu6050.o --omf_browse led\mpu6050.crf --depend led\mpu6050.d)
 I (..\HARDWARE\MPU6050\mpu6050.h)(0x6ADDA231)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
@@ -745,49 +702,17 @@ I (../Core/Inc/main.h)(0x657F664C)
 I (E:\Legion\Documents\ARM\ARMCC\include\math.h)(0x5E8E3CC2)
 I (E:\Legion\Documents\ARM\ARMCC\include\stdio.h)(0x5E8E3CC2)
 F (..\HARDWARE\MPU6050\mpu6050.h)(0x6ADDA231)()
-F (..\HARDWARE\STABILIZER\stabilizer.c)(0x6ADDA231)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\stabilizer.o --omf_browse led\stabilizer.crf --depend led\stabilizer.d)
-I (..\HARDWARE\STABILIZER\stabilizer.h)(0x6A293A3A)
-I (../Core/Inc/main.h)(0x657F664C)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
-I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h)(0x657F65FA)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h)(0x657F65FC)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h)(0x657F65FC)
-I (../Drivers/CMSIS/Include/core_cm3.h)(0x657F664A)
+F (..\HARDWARE\STABILIZER\stabilizer.c)(0x6AF2863E)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\stabilizer.o --omf_browse led\stabilizer.crf --depend led\stabilizer.d)
+I (..\HARDWARE\STABILIZER\stabilizer.h)(0x6AF2863C)
+I (..\HARDWARE\K230\k230.h)(0x6AF284FC)
 I (E:\Legion\Documents\ARM\ARMCC\include\stdint.h)(0x5E8E3CC2)
-I (../Drivers/CMSIS/Include/cmsis_version.h)(0x657F664A)
-I (../Drivers/CMSIS/Include/cmsis_compiler.h)(0x657F664A)
-I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x657F664C)
-I (../Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h)(0x657F65FC)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h)(0x657F65FA)
-I (E:\Legion\Documents\ARM\ARMCC\include\stddef.h)(0x5E8E3CC2)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_exti.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
-I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-I (..\HARDWARE\MORTOR\motor.h)(0x6ADDA231)
-I (..\HARDWARE\DWT_DELAY\dwt_delay.h)(0x6ADDA231)
-I (..\HARDWARE\MPU6050\mpu6050.h)(0x6ADDA231)
-I (../HARDWARE/OLED/oled.h)(0x6ADDA231)
-I (E:\Legion\Documents\ARM\ARMCC\include\stdlib.h)(0x5E8E3CC2)
-I (E:\Legion\Documents\ARM\ARMCC\include\math.h)(0x5E8E3CC2)
-I (..\HARDWARE\ADC\adc.h)(0x6A293A3A)
-I (..\HARDWARE\K230\k230.h)(0x6ADDA231)
-F (..\HARDWARE\STABILIZER\stabilizer.h)(0x6A293A3A)()
+I (..\HARDWARE\APP\contest_config.h)(0x6AF5C721)
+I (E:\Legion\Documents\ARM\ARMCC\include\string.h)(0x5E8E3CC2)
+F (..\HARDWARE\STABILIZER\stabilizer.h)(0x6AF2863C)()
 F (..\HARDWARE\DWT_DELAY\dwt_delay.c)(0x6A252D4C)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\dwt_delay.o --omf_browse led\dwt_delay.crf --depend led\dwt_delay.d)
 F (..\HARDWARE\DWT_DELAY\dwt_delay.h)(0x6ADDA231)()
-F (..\HARDWARE\APP\app.c)(0x6ADDA230)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\app.o --omf_browse led\app.crf --depend led\app.d)
-I (..\HARDWARE\APP\app.h)(0x6ADDA230)
+F (..\HARDWARE\APP\app.c)(0x6AF286AA)(--c99 -c --cpu Cortex-M3 -D__MICROLIB -g -O2 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../HARDWARE/OLED -I ..\HARDWARE\MORTOR -I ..\HARDWARE\K230 -I ..\HARDWARE\K230 -I ..\HARDWARE\ADC -I ..\HARDWARE\MPU6050 -I ..\HARDWARE\STABILIZER -I ..\HARDWARE\DWT_DELAY -I ..\HARDWARE\APP-I.\RTE\_LED-IE:\Legion\Documents\ARM\CMSIS\6.3.0\CMSIS\Core\Include-IE:\Legion\Documents\Keil\STM32F1xx_DFP\2.4.1\Device\Include-D__UVISION_VERSION="543" -DSTM32F10X_MD -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F103xB-o led\app.o --omf_browse led\app.crf --depend led\app.d)
+I (..\HARDWARE\APP\app.h)(0x6AF28578)
 I (../Core/Inc/main.h)(0x657F664C)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h)(0x657F65FA)
 I (../Core/Inc/stm32f1xx_hal_conf.h)(0x6A253128)
@@ -816,14 +741,14 @@ I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h)(0x657F65FA)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h)(0x657F65F8)
 I (../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h)(0x657F65F8)
-I (..\HARDWARE\MORTOR\motor.h)(0x6ADDA231)
-I (..\HARDWARE\DWT_DELAY\dwt_delay.h)(0x6ADDA231)
-I (..\HARDWARE\MPU6050\mpu6050.h)(0x6ADDA231)
+I (../Core/Inc/gpio.h)(0x657F664C)
+I (../Core/Inc/usart.h)(0x6AF285FE)
 I (../HARDWARE/OLED/oled.h)(0x6ADDA231)
 I (E:\Legion\Documents\ARM\ARMCC\include\stdlib.h)(0x5E8E3CC2)
-I (E:\Legion\Documents\ARM\ARMCC\include\math.h)(0x5E8E3CC2)
-I (..\HARDWARE\K230\k230.h)(0x6ADDA231)
-I (..\HARDWARE\ADC\adc.h)(0x6A293A3A)
-I (..\HARDWARE\STABILIZER\stabilizer.h)(0x6A293A3A)
+I (..\HARDWARE\MORTOR\motor.h)(0x6AF284FC)
+I (..\HARDWARE\STABILIZER\stabilizer.h)(0x6AF2863C)
+I (..\HARDWARE\K230\k230.h)(0x6AF284FC)
+I (..\HARDWARE\APP\contest_config.h)(0x6AF5C721)
 I (E:\Legion\Documents\ARM\ARMCC\include\stdio.h)(0x5E8E3CC2)
-F (..\HARDWARE\APP\app.h)(0x6ADDA230)()
+F (..\HARDWARE\APP\app.h)(0x6AF28578)()
+F (../HARDWARE/APP/contest_config.h)(0x6AF5C721)()
