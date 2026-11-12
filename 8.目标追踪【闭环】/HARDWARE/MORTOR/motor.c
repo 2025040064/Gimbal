@@ -31,7 +31,7 @@ void Motor_GPIO_Init(Motor_HandleTypeDef *hmotor)
     GPIO_InitStruct.Pin = hmotor->ENA_Pin;
     HAL_GPIO_Init(hmotor->ENA_GPIO_Port, &GPIO_InitStruct);
 
-    HAL_GPIO_WritePin(hmotor->ENA_GPIO_Port, hmotor->ENA_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(p, hmotor->ENA_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(hmotor->PUL_GPIO_Port, hmotor->PUL_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(hmotor->DIR_GPIO_Port, hmotor->DIR_Pin, GPIO_PIN_RESET);
 }

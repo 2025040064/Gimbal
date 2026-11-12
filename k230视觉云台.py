@@ -7,10 +7,13 @@ HMIRROR = True
 # For its UART2 socket, set these to 11 and 12.
 UART2_TX_PIN = 5
 UART2_RX_PIN = 6
-INITIAL_TARGET_ID = None  # Set to 0-9 for bench testing without a UART command source.
+INITIAL_TARGET_ID = 3  # Set the target digit (0-9) before running.
 SEND_INTERVAL_MS = 50
-SCAN_DURATION_MS = 60_000
 CONFIRM_FRAMES = 3
+SHORT_LOSS_MS = 300
+CENTER_X = DETECT_WIDTH // 2
+CENTER_Y = DETECT_HEIGHT // 2
+STATS_INTERVAL_MS = 10_000
 
 WHITE_MIN = 158
 BLACK_MAX = 128
@@ -334,7 +337,7 @@ def detect_cards(gray):
         if glyph is not None:
             digit = recognize_digit(gray, glyph)
             if digit is not None:
-                detections.append((digit, rect))
+                detections.append((digit, rect, glyph))
     return detections
 
 
@@ -350,112 +353,106 @@ def nearby(previous, current):
             and abs(new_y - old_y) <= max(previous[3], current[3]))
 
 
-class CommandReader:
-    def __init__(self):
-        self.line = bytearray()
-        self.discard = False
-
-    def feed(self, data):
-        for value in data or b"":
-            if value == 10:
-                if self.line and not self.discard:
-                    line = bytes(self.line)
-                    yield line[:-1] if line.endswith(b"\r") else line
-                self.line = bytearray()
-                self.discard = False
-            elif not self.discard:
-                if len(self.line) < 8:
-                    self.line.append(value)
-                else:
-                    self.discard = True
+def same_box(first, second):
+    x1, y1, w1, h1 = first
+    x2, y2, w2, h2 = second
+    width = min(x1 + w1, x2 + w2) - max(x1, x2)
+    height = min(y1 + h1, y2 + h2) - max(y1, y2)
+    return width > 0 and height > 0 and 2 * width * height >= max(w1 * h1, w2 * h2)
 
 
 class VisionSession:
-    def __init__(self, ticks_diff):
+    def __init__(self, target_id, ticks_diff):
+        if type(target_id) is not int or not 0 <= target_id <= 9:
+            raise ValueError("INITIAL_TARGET_ID must be an integer from 0 to 9")
+        self.target_id = target_id
         self.ticks_diff = ticks_diff
-        self.target_id = None
-        self.scan_started = None
-        self.seen = set()
-        self.streaks = {}
+        self.state = "SEARCH"
+        self.last_detection = None
+        self.last_seen = None
+        self.candidate = None
+        self.confirm_count = 0
 
-    def command(self, line, now):
-        if line == b"SCAN":
-            self.scan_started = now
-            self.seen.clear()
-            self.target_id = None
-        elif line == b"STOP":
-            self.scan_started = None
-            self.target_id = None
-        elif len(line) == 4 and line[:3] == b"ID," and 48 <= line[3] <= 57:
-            target_id = line[3] - 48
-            if target_id == self.target_id:
-                return True
-            self.target_id = target_id
-            self.scan_started = None
-        else:
-            return False
-        self.streaks = {}
-        return True
+    def target_candidate(self, detections):
+        candidate = None
+        for detection in detections:
+            digit, card, glyph = detection
+            if digit != self.target_id:
+                continue
+            if candidate is None:
+                candidate = detection
+            elif not (same_box(candidate[1], card) and same_box(candidate[2], glyph)):
+                # Independent matches for the same digit are ambiguous.
+                return None
+        return candidate
 
     def observe(self, detections, now):
-        scan_result = None
-        if self.scan_started is not None and self.ticks_diff(now, self.scan_started) >= SCAN_DURATION_MS:
-            scan_result = tuple(sorted(self.seen))
-            self.scan_started = None
+        candidate = self.target_candidate(detections)
+        if self.state in ("TRACKING", "HOLD"):
+            elapsed = self.ticks_diff(now, self.last_seen)
+            if ((self.state == "TRACKING" or elapsed < SHORT_LOSS_MS)
+                    and candidate is not None and nearby(self.last_detection[1], candidate[1])):
+                return self.track(candidate, now)
+            if elapsed < SHORT_LOSS_MS:
+                self.state = "HOLD"
+                return None
+            self.state = "OCCLUDED"
 
-        by_id = {}
-        duplicates = set()
-        for digit, rect in detections:
-            if digit in by_id:
-                duplicates.add(digit)
-            by_id[digit] = rect
+        if candidate is None:
+            self.candidate = None
+            self.confirm_count = 0
+            self.state = "SEARCH" if self.last_seen is None else "OCCLUDED"
+            return None
 
-        confirmed = {}
-        streaks = {}
-        for digit, rect in by_id.items():
-            if digit in duplicates:
-                continue
-            previous = self.streaks.get(digit)
-            count = 1
-            if previous is not None and nearby(previous[0], rect):
-                count = min(CONFIRM_FRAMES, previous[1] + 1)
-            streaks[digit] = (rect, count)
-            if count == CONFIRM_FRAMES:
-                confirmed[digit] = rect
-        self.streaks = streaks
+        if self.candidate is not None and nearby(self.candidate[1], candidate[1]):
+            self.confirm_count += 1
+        else:
+            self.confirm_count = 1
+        self.candidate = candidate
+        if self.confirm_count == CONFIRM_FRAMES:
+            self.candidate = None
+            self.confirm_count = 0
+            return self.track(candidate, now)
+        self.state = "CONFIRM" if self.last_seen is None else "REACQUIRE"
+        return None
 
-        new_ids = ()
-        if self.scan_started is not None:
-            new_ids = tuple(sorted(set(confirmed) - self.seen))
-            self.seen.update(new_ids)
-        return confirmed, new_ids, scan_result
+    def track(self, detection, now):
+        self.state = "TRACKING"
+        self.last_detection = detection
+        self.last_seen = now
+        return detection
 
 
-def coordinate_frame(rect):
-    if rect is None:
+def coordinate_frame(detection):
+    if detection is None:
         return NO_TARGET_FRAME
-    cx, cy = center(rect)
+    _, card, glyph = detection
+    cx, cy = center(glyph)
     payload = "{},{},{},{},{},{}".format(
-        DETECT_WIDTH, DETECT_HEIGHT, cx, cy, rect[2], rect[3]
+        DETECT_WIDTH, DETECT_HEIGHT, cx, cy, card[2], card[3]
     )
     return FRAME_HEADER + payload.encode() + FRAME_TAIL
 
 
-def send_coordinates(uart, rect):
-    frame = coordinate_frame(rect)
+def send_coordinates(uart, detection):
+    frame = coordinate_frame(detection)
     sent = uart.write(frame)
     if sent != len(frame):
         raise OSError("UART2 short write: {} of {}".format(sent, len(frame)))
 
 
-def draw_overlay(frame, confirmed, target_id):
-    for digit, rect in confirmed.items():
-        color = (0, 255, 0) if digit == target_id else (255, 255, 0)
-        frame.draw_rectangle(rect, color=color, thickness=2)
-        frame.draw_string(rect[0], max(0, rect[1] - 18), str(digit), color=color, scale=2)
-    if target_id in confirmed:
-        cx, cy = center(confirmed[target_id])
+def draw_overlay(frame, detections, session, selected):
+    frame.draw_cross(CENTER_X, CENTER_Y, color=(255, 255, 255))
+    for detection in detections:
+        digit, card, _ = detection
+        color = (0, 255, 0) if detection is selected else (255, 255, 0)
+        frame.draw_rectangle(card, color=color, thickness=2)
+        frame.draw_string(card[0], max(0, card[1] - 18), str(digit), color=color, scale=2)
+    if selected is not None:
+        cx, cy = center(selected[2])
         frame.draw_cross(cx, cy, color=(0, 255, 0))
+    frame.draw_string(4, 4, "{} {}".format(session.target_id, session.state),
+                      color=(255, 255, 255), scale=2)
 
 
 def cleanup(action, *args):
@@ -474,10 +471,7 @@ def main():
     from media.media import MediaManager
     from media.sensor import Sensor
 
-    if INITIAL_TARGET_ID is not None and (
-        type(INITIAL_TARGET_ID) is not int or not 0 <= INITIAL_TARGET_ID <= 9
-    ):
-        raise ValueError("INITIAL_TARGET_ID must be None or a digit from 0 to 9")
+    session = VisionSession(INITIAL_TARGET_ID, time.ticks_diff)
 
     uart = sensor = None
     display_ready = media_ready = False
@@ -492,7 +486,7 @@ def main():
 
         sensor = Sensor(width=DETECT_WIDTH, height=DETECT_HEIGHT)
         sensor.reset()
-        sensor.set_vflip(VFLIP)  
+        sensor.set_vflip(VFLIP)
         sensor.set_hmirror(HMIRROR)
 
         sensor.set_framesize(width=DETECT_WIDTH, height=DETECT_HEIGHT)
@@ -507,50 +501,38 @@ def main():
         gray = image.Image(DETECT_WIDTH, DETECT_HEIGHT, image.GRAYSCALE)
         sensor.run()
 
-        reader = CommandReader()
-        session = VisionSession(time.ticks_diff)
         last_send = None
-        tracked_id = None
-        if INITIAL_TARGET_ID is not None:
-            session.command("ID,{}".format(INITIAL_TARGET_ID).encode(), time.ticks_ms())
-        print("READY UART2 115200 8N1. Commands: SCAN, ID,0-9, STOP (LF or CRLF).")
+        stats_started = time.ticks_ms()
+        processed_frames = sent_targets = 0
+        print("READY UART2 115200 8N1 TARGET,{}".format(session.target_id))
 
         while True:
             os.exitpoint()
-            for command in reader.feed(uart.read(32)):
-                now = time.ticks_ms()
-                previous_id = session.target_id
-                if session.command(command, now):
-                    print("COMMAND", command.decode())
-                    if previous_id is not None and previous_id != session.target_id:
-                        send_coordinates(uart, None)
-                        last_send = now
-                else:
-                    print("INVALID_COMMAND")
-
             frame = sensor.snapshot()
             gray.draw_image(frame, 0, 0)
             detections = detect_cards(gray)
             now = time.ticks_ms()
-            confirmed, new_ids, scan_result = session.observe(detections, now)
-            selected = confirmed.get(session.target_id)
-            if last_send is None or time.ticks_diff(now, last_send) >= SEND_INTERVAL_MS:
+            previous_state = session.state
+            selected = session.observe(detections, now)
+            processed_frames += 1
+
+            if (session.state != "HOLD"
+                    and (last_send is None or time.ticks_diff(now, last_send) >= SEND_INTERVAL_MS)):
                 send_coordinates(uart, selected)
-                last_send = now
+                last_send = time.ticks_ms()
+                sent_targets += selected is not None
 
-            active_id = session.target_id if selected is not None else None
-            if tracked_id != active_id:
-                if tracked_id is not None:
-                    print("LOST,{}".format(tracked_id))
-                if active_id is not None:
-                    print("TRACK,{}".format(active_id))
-                tracked_id = active_id
-            for digit in new_ids:
-                print("FOUND,{}".format(digit))
-            if scan_result is not None:
-                print("SCAN_RESULT,{}".format(",".join([str(digit) for digit in scan_result])))
+            if session.state == "TRACKING" and previous_state not in ("TRACKING", "HOLD"):
+                print("TRACK,{},{}".format(session.target_id, now))
+            elif previous_state in ("TRACKING", "HOLD") and session.state not in ("TRACKING", "HOLD"):
+                print("LOST,{},{}".format(session.target_id, now))
+            stats_elapsed = time.ticks_diff(now, stats_started)
+            if stats_elapsed >= STATS_INTERVAL_MS:
+                print("STATS,{},{},{}".format(stats_elapsed, processed_frames, sent_targets))
+                stats_started = now
+                processed_frames = sent_targets = 0
 
-            draw_overlay(frame, confirmed, session.target_id)
+            draw_overlay(frame, detections, session, selected)
             Display.show_image(frame)
 
     except KeyboardInterrupt:

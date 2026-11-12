@@ -15,6 +15,8 @@ extern int16_t screen_h;
 
 // 对外暴露的初始化和处理函数
 void K230_Init(void);
-void K230_Process(void);
+/* 返回 1 表示有新坐标或目标状态变为无效。 */
+uint8_t K230_Process(void);
+uint8_t K230_TargetIsFresh(void);
 
 #endif /* __K230_H__ */

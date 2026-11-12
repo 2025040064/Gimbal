@@ -473,7 +473,7 @@
             <File>
               <FileName>usart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>D:\(!解压缩密码是VCC)(下载winRAR解压)STM32小车相关资料V3.3.0_3(更新openmv 电磁 添加FreeRTOS 更新论文) (20250330)\STM32小车相关资料V3.3.0\01程序资料\MyCode_V3.3.0\04_LED\LED\Core\Inc\usart.h</FilePath>
+              <FilePath>../Core/Inc/usart.h</FilePath>
             </File>
           </Files>
         </Group>

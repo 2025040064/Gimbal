@@ -1,129 +1,145 @@
 #include "k230.h"
 #include "usart.h"
-#include "string.h"
-#include "stdio.h"
+#include <stdlib.h>
+#include <string.h>
 
 extern UART_HandleTypeDef huart3;
 extern void MX_USART3_UART_Init(void);
-extern uint8_t k230_data_valid;
 
-#define RX_BUF_SIZE         64
-#define K230_TIMEOUT_MS     500   // 超时时间：超过此时间未收到帧即认为无数据
+#define RX_BUF_SIZE          64
+#define TARGET_FRESH_MS     150U
+#define SCREEN_WIDTH        640
+#define SCREEN_HEIGHT       480
 
-static uint8_t k230_rx_byte;
-static uint8_t k230_rx_data[RX_BUF_SIZE];
-static uint8_t k230_rx_index = 0;
-static uint8_t k230_rx_state = 0;
-static uint8_t k230_frame_ready = 0;
+enum RxState { WAIT_AA, WAIT_55, READ_PAYLOAD, WAIT_LF };
 
-// 对外暴露的解析结果
+static uint8_t rx_byte;
+static char rx_data[RX_BUF_SIZE];
+static uint8_t rx_index;
+static enum RxState rx_state;
+static char pending_data[RX_BUF_SIZE];
+static volatile uint8_t pending_length;
+static volatile uint32_t pending_tick;
+
 int16_t target_x = -1;
 int16_t target_y = -1;
 int16_t target_w = -1;
 int16_t target_h = -1;
-int16_t screen_w = 0;
-int16_t screen_h = 0;
+int16_t screen_w = SCREEN_WIDTH;
+int16_t screen_h = SCREEN_HEIGHT;
 
-// 超时检测相关
-static uint32_t last_k230_recv_tick = 0;   // 上一次成功解析帧的时刻
+static volatile uint8_t target_valid;
+static volatile uint32_t last_target_tick;
 
-static void Parse_K230_Data(uint8_t *data);
-
-/**
- * @brief  K230模块初始化
- */
 void K230_Init(void)
 {
     MX_USART3_UART_Init();
-    HAL_UART_Receive_IT(&huart3, &k230_rx_byte, 1);
-    last_k230_recv_tick = HAL_GetTick();    // 初始化时间戳
-    printf("K230\xCA\xD3\xBE\xF5\xC4\xA3\xBF\xE9\xB3\xF5\xCA\xBC\xBB\xAF\xCD\xEA\xB3\xC9\r\n");
+    HAL_UART_Receive_IT(&huart3, &rx_byte, 1);
 }
 
-/**
- * @brief  处理K230接收帧，并维护超时状态
- */
-void K230_Process(void)
+uint8_t K230_TargetIsFresh(void)
 {
-    if (k230_frame_ready) {
-        Parse_K230_Data(k230_rx_data);
-        k230_frame_ready = 0;
-    }
-
-    // 超时检测：超过 K230_TIMEOUT_MS 未收到任何有效帧，视为无数据
-    if (HAL_GetTick() - last_k230_recv_tick > K230_TIMEOUT_MS) {
-        k230_data_valid = 0;
-    }
+    return target_valid && HAL_GetTick() - last_target_tick < TARGET_FRESH_MS;
 }
 
-/**
- * @brief  串口接收完成中断回调函数
- */
+static uint8_t Parse_K230_Data(const char *data)
+{
+    long fields[6];
+    for (uint8_t i = 0; i < 6; i++) {
+        char *end;
+        char separator = (i < 5) ? ',' : '\0';
+        fields[i] = strtol(data, &end, 10);
+        if (end == data || *end != separator) return 0;
+        data = end + 1;
+    }
+
+    if (fields[0] != SCREEN_WIDTH || fields[1] != SCREEN_HEIGHT) return 0;
+
+    if (fields[2] == -1 && fields[3] == -1 && fields[4] == -1 && fields[5] == -1) {
+        target_valid = 0;
+        target_x = target_y = target_w = target_h = -1;
+        return 0;
+    }
+
+    if (fields[2] < 0 || fields[2] >= SCREEN_WIDTH ||
+        fields[3] < 0 || fields[3] >= SCREEN_HEIGHT ||
+        fields[4] <= 0 || fields[4] > SCREEN_WIDTH ||
+        fields[5] <= 0 || fields[5] > SCREEN_HEIGHT) return 0;
+
+    target_x = (int16_t)fields[2];
+    target_y = (int16_t)fields[3];
+    target_w = (int16_t)fields[4];
+    target_h = (int16_t)fields[5];
+    return 1;
+}
+
+uint8_t K230_Process(void)
+{
+    uint8_t was_valid = target_valid;
+    if (pending_length != 0) {
+        char data[RX_BUF_SIZE];
+        // Take a snapshot of the latest complete frame before parsing in the main loop.
+        uint32_t irq_state = __get_PRIMASK();
+        __disable_irq();
+        memcpy(data, pending_data, pending_length);
+        uint32_t received_at = pending_tick;
+        pending_length = 0;
+        __set_PRIMASK(irq_state);
+
+        if (HAL_GetTick() - received_at < TARGET_FRESH_MS && Parse_K230_Data(data)) {
+            last_target_tick = received_at;
+            target_valid = 1;
+            return 1;
+        }
+    }
+
+    if (!K230_TargetIsFresh()) target_valid = 0;
+    return was_valid && !target_valid;
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART3) {
-        uint8_t data = k230_rx_byte;
+    if (huart->Instance != USART3 || huart->ErrorCode != HAL_UART_ERROR_NONE) return;
 
-        switch (k230_rx_state) {
-            case 0: if (data == 0xAA) k230_rx_state = 1; break;
-            case 1: 
-                if (data == 0x55) {
-                    k230_rx_state = 2;
-                    k230_rx_index = 0;
-                    memset(k230_rx_data, 0, RX_BUF_SIZE);
-                } else {
-                    k230_rx_state = 0;
-                }
-                break;
-            case 2:
-                if (data == 0x0D) {
-                    k230_rx_state = 3;
-                } else {
-                    k230_rx_data[k230_rx_index++] = data;
-                    if (k230_rx_index >= RX_BUF_SIZE - 1) k230_rx_state = 0;
-                }
-                break;
-            case 3:
-                if (data == 0x0A) k230_frame_ready = 1;
-                k230_rx_state = 0;
-                break;
-            default: k230_rx_state = 0; break;
+    uint8_t byte = rx_byte;
+    if (byte == 0xAA) {
+        rx_state = WAIT_55;
+    } else {
+        switch (rx_state) {
+        case WAIT_55:
+            rx_state = (byte == 0x55) ? READ_PAYLOAD : WAIT_AA;
+            rx_index = 0;
+            break;
+        case READ_PAYLOAD:
+            if (byte == '\r') {
+                rx_state = WAIT_LF;
+            } else if (((byte >= '0' && byte <= '9') || byte == '-' || byte == ',')
+                       && rx_index < RX_BUF_SIZE - 1) {
+                rx_data[rx_index++] = (char)byte;
+            } else {
+                rx_state = WAIT_AA;
+            }
+            break;
+        case WAIT_LF:
+            if (byte == '\n') {
+                rx_data[rx_index] = '\0';
+                memcpy(pending_data, rx_data, rx_index + 1);
+                pending_tick = HAL_GetTick();
+                pending_length = rx_index + 1;
+            }
+            rx_state = WAIT_AA;
+            break;
+        default:
+            break;
         }
-
-        HAL_UART_Receive_IT(&huart3, &k230_rx_byte, 1);
     }
+    HAL_UART_Receive_IT(huart, &rx_byte, 1);
 }
 
-/**
- * @brief  解析CSV数据帧，仅判断格式，不因内容为-1而置无效
- */
-static void Parse_K230_Data(uint8_t *data)
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
-    int16_t sw, sh;
-    int result = sscanf((char*)data, "%hd,%hd,%hd,%hd,%hd,%hd", 
-           &sw, &sh, 
-           &target_x, &target_y, 
-           &target_w, &target_h);
-    
-    if (result != 6) {
-        // 解析失败，保持上次数据，但不清除 k230_data_valid
-        printf("K230\xCA\xFD\xBE\xDD\xBD\xE2\xCE\xF6\xCA\xA7\xB0\xDC: %s\r\n", data);
-        return;   
-    }
-
-    
-    screen_w = sw;
-    screen_h = sh;
-
-    // 更新有效帧标志和时间戳
-    k230_data_valid = 1;
-    last_k230_recv_tick = HAL_GetTick();
-
-   
-    if (target_x == -1 && target_y == -1 && target_w == -1 && target_h == -1) {
-        printf("K230\xA3\xBA\xCE\xB4\xBC\xEC\xB2\xE2\xB5\xBD\xC4\xBF\xB1\xEA\r\n");
-    } else {
-        printf("K230\xCA\xB6\xB1\xF0\xB5\xBD\xC4\xBF\xB1\xEA: X=%d Y=%d W=%d H=%d\r\n", 
-               target_x, target_y, target_w, target_h);
+    if (huart->Instance == USART3) {
+        rx_state = WAIT_AA;
+        HAL_UART_Receive_IT(huart, &rx_byte, 1);
     }
 }

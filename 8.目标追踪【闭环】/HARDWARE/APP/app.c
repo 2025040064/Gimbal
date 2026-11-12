@@ -15,8 +15,6 @@ uint8_t m2_run = 0;
 MPU6050_Data_TypeDef mpu_data;
 uint32_t last_mpu_read = 0;
 
-uint8_t k230_data_valid = 0;
-
 TIM_HandleTypeDef htim2;
 
 // 定时器初始化
@@ -44,6 +42,11 @@ void MX_TIM2_Init(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2) {
+        // 即使主循环正在刷新 OLED，过期坐标也不能继续产生脉冲。
+        if ((motorCtrl1.is_running || motorCtrl2.is_running) && !K230_TargetIsFresh()) {
+            motorCtrl1.is_running = 0;
+            motorCtrl2.is_running = 0;
+        }
         MotorCtrl_Update(&motorCtrl1);
         MotorCtrl_Update(&motorCtrl2);
     }
@@ -65,12 +68,13 @@ void Update_OLED_Display(void)
 {
     {
         OLED_ShowString(0, 0, (uint8_t*)"Auto tracking", 16);
+        uint8_t has_target = K230_TargetIsFresh();
 
-        if(k230_data_valid == 0) sprintf(oled_buf, "X:----  Y:----   ");
+        if(!has_target) sprintf(oled_buf, "X:----  Y:----   ");
         else sprintf(oled_buf, "X:%-4d Y:%-4d", target_x, target_y);
         OLED_ShowString(0, 2, (uint8_t*)oled_buf, 16);
 
-        if(k230_data_valid == 0) sprintf(oled_buf, "W:----  H:----   ");
+        if(!has_target) sprintf(oled_buf, "W:----  H:----   ");
         else sprintf(oled_buf, "W:%-4d H:%-4d", target_w, target_h);
         OLED_ShowString(0, 4, (uint8_t*)oled_buf, 16);
 

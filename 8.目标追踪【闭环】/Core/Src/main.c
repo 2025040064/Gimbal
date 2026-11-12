@@ -33,8 +33,6 @@ int main(void)
     MotorCtrl_Init(&motorCtrl1, &hmotor1);
     MotorCtrl_Init(&motorCtrl2, &hmotor2);
     
-    // 稳定器初始化
-    Stabilizer_Init();
     Motor_All_Stop();
     
     // 启动提示
@@ -55,10 +53,12 @@ int main(void)
         // DWT溢出自动重置（每50秒）
         if (HAL_GetTick() - last_dwt_reset >= 50000) {
             __disable_irq();
-            uint32_t offset = DWT->CYCCNT;
+            uint32_t offset_us = DWT_GetTickUs();
             DWT->CYCCNT = 0;
-            motorCtrl1.next_pulse_tick -= offset;
-            motorCtrl2.next_pulse_tick -= offset;
+            motorCtrl1.next_pulse_tick -= offset_us;
+            motorCtrl2.next_pulse_tick -= offset_us;
+            motorCtrl1.last_accel_time -= offset_us;
+            motorCtrl2.last_accel_time -= offset_us;
             __enable_irq();
             last_dwt_reset = HAL_GetTick();
         }
@@ -69,9 +69,10 @@ int main(void)
             last_mpu_read = HAL_GetTick();
         }
 
-        // 更新稳定器和K230数据
-        Stabilizer_Update();
-        K230_Process();
+        // 每个新测量只更新一次控制指令。
+        if (K230_Process()) {
+            Stabilizer_Update();
+        }
 
         // 更新OLED显示（200ms一次）
         if (HAL_GetTick() - last_oled_update >= 200) {

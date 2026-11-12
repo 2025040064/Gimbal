@@ -13,7 +13,6 @@ extern uint8_t m1_run;
 extern uint8_t m2_run;
 extern MPU6050_Data_TypeDef mpu_data;
 extern uint32_t last_mpu_read;
-extern uint8_t k230_data_valid;
 extern TIM_HandleTypeDef htim2;
 
 // 宏定义
