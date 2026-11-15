@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-enum { VISION_IDLE, VISION_SCAN, VISION_TRACK, VISION_FAULT, VISION_LEGACY };
+enum { VISION_IDLE, VISION_SCAN, VISION_TRACK, VISION_FAULT, VISION_LEGACY, VISION_BROADCAST };
 
 typedef struct {
     int16_t width, height, x, y, box_w, box_h;

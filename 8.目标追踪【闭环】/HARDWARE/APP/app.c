@@ -5,10 +5,13 @@
 #include "motor.h"
 #include "stabilizer.h"
 #include "contest_config.h"
+#include "mpu6050.h"
 #include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
 
-#if CONTEST_MODE != 'A' && CONTEST_MODE != 'B' && CONTEST_MODE != 'C' && CONTEST_MODE != 'D' && CONTEST_MODE != 'J' && CONTEST_MODE != 'T'
-#error Select A, B, C, D, J or T
+#if CONTEST_MODE != 'A' && CONTEST_MODE != 'B' && CONTEST_MODE != 'C' && CONTEST_MODE != 'D' && CONTEST_MODE != 'F' && CONTEST_MODE != 'J' && CONTEST_MODE != 'M' && CONTEST_MODE != 'T'
+#error Invalid internal application mode
 #endif
 #if CONTEST_TARGET_ID < 0 || CONTEST_TARGET_ID > 9
 #error Select a digit from 0 to 9
@@ -25,15 +28,38 @@
 
 TIM_HandleTypeDef htim2;
 static MotorCtrl_TypeDef yaw, pitch;
+static TrackControl yaw_control, pitch_control;
 static Contest task;
 static VisionFrame frame;
 static uint32_t last_command, last_display, last_update;
 static int32_t yaw_limit, pitch_limit;
 static uint8_t jog_active, jog_started;
+static volatile uint32_t control_heartbeat;
+static volatile uint8_t control_stalled;
+static char display_lines[4][17], displayed[4][16];
+static uint8_t display_cursor;
+static uint32_t last_pixel;
+static MPU6050_Data_TypeDef imu_data;
+static uint32_t last_imu;
+static uint8_t imu_ok;
 static const char *const state_names[] = {
     "SYNC", "ARM", "SEARCH", "TRACK", "HOLD", "WAIT LOSS", "OCCLUDED",
-    "REARM", "DONE", "TIMEOUT", "LINK FAULT"
+    "REARM", "DONE", "TIMEOUT", "FAULT"
 };
+static const char *const fault_names[] = {
+    "NONE", "VISION/RECORD", "SYNC TIMEOUT", "ARM TIMEOUT", "WRONG ID",
+    "LINK LOST", "STALE VISION", "UART TX", "CONTROL STALL"
+};
+
+static void Log(const char *format, ...)
+{
+    char line[160];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+    UART_LogLine(line);
+}
 
 static void InitTimer(void)
 {
@@ -44,7 +70,7 @@ static void InitTimer(void)
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if (HAL_TIM_Base_Init(&htim2) != HAL_OK) Error_Handler();
-    HAL_NVIC_SetPriority(TIM2_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
     if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) Error_Handler();
 }
@@ -52,6 +78,14 @@ static void InitTimer(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *timer)
 {
     if (timer->Instance == TIM2) {
+        /* A stalled foreground must not leave the last motion running. */
+        if (control_stalled) return;
+        if (HAL_GetTick() - control_heartbeat >= CONTROL_STALL_MS) {
+            MotorCtrl_Stop(&yaw);
+            MotorCtrl_Stop(&pitch);
+            control_stalled = 1;
+            return;
+        }
         MotorCtrl_Update(&yaw);
         MotorCtrl_Update(&pitch);
     }
@@ -62,29 +96,34 @@ static int32_t DegreesToPulses(int degrees, int32_t pulses_per_turn)
     return (int32_t)degrees * pulses_per_turn / 360;
 }
 
-static void TrackAxis(MotorCtrl_TypeDef *motor, int error, int half, int32_t limit)
+static void TrackAxis(MotorCtrl_TypeDef *motor, TrackControl *control,
+                      int error, int half, int32_t limit, uint32_t now)
 {
-    int magnitude = error < 0 ? -error : error;
+    int32_t speed = TrackControl_Update(control, error, half, task.sequence, now);
+    int32_t magnitude = speed < 0 ? -speed : speed;
     uint16_t period;
-    uint32_t remaining;
-    if (magnitude <= TRACK_DEADZONE_PX || half == 0) {
+    if (magnitude < 16 || (speed > 0 && motor->position >= limit) ||
+        (speed < 0 && motor->position <= -limit)) {
         MotorCtrl_Stop(motor);
+        if (magnitude >= 16) TrackControl_Reset(control);
         return;
     }
-    remaining = magnitude >= half ? 0u : (uint32_t)(half - magnitude) * 100u / half;
-    period = TRACK_MIN_PULSE_US +
-             (5500u - TRACK_MIN_PULSE_US) * remaining * remaining / 10000u;
-    MotorCtrl_Move(motor, error > 0 ? limit : -limit, period);
+    period = (uint16_t)(1000000u / (uint32_t)magnitude);
+    MotorCtrl_Move(motor, speed > 0 ? limit : -limit, period);
 }
 
-static void ApplyMotion(void)
+static void ApplyMotion(uint32_t now)
 {
+    if (task.motion != MOTION_TRACK) {
+        TrackControl_Reset(&yaw_control);
+        TrackControl_Reset(&pitch_control);
+    }
     if (task.motion == MOTION_SCAN) {
         MotorCtrl_Move(&yaw, DegreesToPulses(task.yaw_deg, YAW_PULSES_PER_TURN), SCAN_PULSE_US);
         MotorCtrl_Move(&pitch, DegreesToPulses(task.pitch_deg, PITCH_PULSES_PER_TURN), SCAN_PULSE_US);
     } else if (task.motion == MOTION_TRACK) {
-        TrackAxis(&yaw, task.frame.x - task.frame.width / 2, task.frame.width / 2, yaw_limit);
-        TrackAxis(&pitch, task.frame.y - task.frame.height / 2, task.frame.height / 2, pitch_limit);
+        TrackAxis(&yaw, &yaw_control, task.frame.x - task.frame.width / 2, task.frame.width / 2, yaw_limit, now);
+        TrackAxis(&pitch, &pitch_control, task.frame.y - task.frame.height / 2, task.frame.height / 2, pitch_limit, now);
     } else {
         MotorCtrl_Stop(&yaw);
         MotorCtrl_Stop(&pitch);
@@ -97,21 +136,54 @@ static void Line(uint8_t page, char *line)
     while (i < 16 && line[i]) ++i;
     while (i < 16) line[i++] = ' ';
     line[16] = 0;
-    OLED_ShowString(0, page, (uint8_t *)line, 16);
+    memcpy(display_lines[page / 2], line, 17);
+}
+
+static void DisplayStep(uint32_t now)
+{
+    unsigned count;
+    if (now - last_pixel < 2u) return;
+    last_pixel = now;
+    for (count = 0; count < 64; ++count) {
+        unsigned row = display_cursor / 16u, col = display_cursor % 16u;
+        display_cursor = (display_cursor + 1u) % 64u;
+        if (displayed[row][col] != display_lines[row][col]) {
+            OLED_ShowChar(col * 8u, row * 2u, (uint8_t)display_lines[row][col], 16);
+            displayed[row][col] = display_lines[row][col];
+            break; /* One glyph per main-loop pass, not a blocking screen refresh. */
+        }
+    }
 }
 
 static void Show(void)
 {
     char line[32];
+#if CONTEST_MODE == 'M'
+    (void)frame.x;
+    (void)jog_active;
+    sprintf(line, "M MPU %s", imu_ok ? "OK" : "ERROR");
+    Line(0, line);
+    sprintf(line, "AX:%d", imu_data.acc_x); Line(2, line);
+    sprintf(line, "AY:%d", imu_data.acc_y); Line(4, line);
+    sprintf(line, "AZ:%d", imu_data.acc_z); Line(6, line);
+#else
     unsigned pos, i;
     const char *state = state_names[task.state];
-    if (task.mode == 'C' && !Contest_Ended(&task) && task.have_sequence &&
-        HAL_GetTick() - task.started >= 15000u) state = "MOVE NOW";
+    uint32_t elapsed = HAL_GetTick() - task.started;
+    (void)imu_ok;
+    if (task.fault) state = fault_names[task.fault];
+    else if (task.mode == 'C' && !Contest_Ended(&task) && task.scoring) state = "MOVE NOW";
+    else if (task.mode == 'B' && task.acquire_failed && !Contest_Ended(&task)) state = "LOCK FAILED";
     sprintf(line, "%c %s", CONTEST_MODE, CONTEST_MODE == 'J' ?
             (jog_active ? "JOG" : "JOG DONE") : !MOTION_CALIBRATED && CONTEST_MODE != 'T' ?
             "CAL REQUIRED" : state);
+    if (CONTEST_MODE == 'F' && MOTION_CALIBRATED) {
+        if (!task.fault && task.state == TASK_OCCLUDED) state = "LOST WAIT";
+        else if (!task.fault && task.state == TASK_HOLD) state = "CENTER";
+        sprintf(line, "%s", state);
+    }
     Line(0, line);
-    if (CONTEST_MODE == 'A') {
+    if (task.mode == 'A') {
         pos = 3;
         line[0] = 'I'; line[1] = 'D'; line[2] = ':';
         for (i = 0; i < 10; ++i) if (task.ids & (1u << i)) line[pos++] = '0' + i;
@@ -123,11 +195,21 @@ static void Show(void)
     Line(2, line);
     sprintf(line, "X:%d Y:%d", frame.x, frame.y);
     Line(4, line);
-    if (CONTEST_MODE == 'B') sprintf(line, "HOLD:%lums", (unsigned long)task.hold_ms);
-    else if (CONTEST_MODE == 'D') sprintf(line, "PASS:%u/%u", task.d_passes, task.d_trials);
+    if (task.mode == 'F') {
+        uint32_t now = HAL_GetTick();
+        if (task.state == TASK_OCCLUDED && now - task.lost_at < TARGET_LOSS_SEARCH_DELAY_MS)
+            sprintf(line, "WAIT:%lums", (unsigned long)(TARGET_LOSS_SEARCH_DELAY_MS - (now - task.lost_at)));
+        else sprintf(line, "CENTER:%lums", (unsigned long)(task.centered ? now - task.center_since : 0));
+    }
+    else if (task.mode == 'B') sprintf(line, "HOLD:%lums", (unsigned long)task.hold_ms);
+    else if (task.mode == 'D') sprintf(line, "PASS:%u/%u", task.d_passes, task.d_trials);
     else if (CONTEST_MODE == 'J') sprintf(line, "STEP:%ld", (long)(JOG_AXIS ? pitch.position : yaw.position));
-    else sprintf(line, "LOCK:%lums", (unsigned long)task.lock_ms);
+    else if (task.mode == 'C' && task.have_sequence && !Contest_Ended(&task)) {
+        uint32_t end = task.scoring ? ACQUIRE_MS + C_SCORE_MS : ACQUIRE_MS;
+        sprintf(line, "%s:%lus", task.scoring ? "SCORE" : "READY", (unsigned long)((end - elapsed + 999u) / 1000u));
+    } else sprintf(line, "LOCK:%lums", (unsigned long)task.lock_ms);
     Line(6, line);
+#endif
 }
 
 void App_Init(void)
@@ -139,12 +221,16 @@ void App_Init(void)
     OLED_Init();
     OLED_Clear();
     K230_Init();
+    if (CONTEST_MODE == 'M') MPU6050_Init();
+    control_heartbeat = HAL_GetTick();
     InitTimer();
-    yaw_limit = DegreesToPulses(60, YAW_PULSES_PER_TURN);
-    pitch_limit = DegreesToPulses(20, PITCH_PULSES_PER_TURN);
+    memset(display_lines, ' ', sizeof(display_lines));
+    yaw_limit = DegreesToPulses(YAW_LIMIT_DEG, YAW_PULSES_PER_TURN);
+    pitch_limit = DegreesToPulses(PITCH_LIMIT_DEG, PITCH_PULSES_PER_TURN);
     frame.x = frame.y = -1;
     Contest_Init(&task, CONTEST_MODE == 'T' ? 'B' : CONTEST_MODE, CONTEST_TARGET_ID, HAL_GetTick());
-    printf("BOOT,%c,%d,CAL=%d\r\n", CONTEST_MODE, CONTEST_TARGET_ID, MOTION_CALIBRATED);
+    Log("BOOT,%c,%d,CAL=%d,ONE_WAY=%d,ZERO=MANUAL,D_TIME=EST\r\n", CONTEST_MODE, CONTEST_TARGET_ID, MOTION_CALIBRATED, VISION_ONE_WAY);
+    Show();
 }
 
 void App_Update(void)
@@ -155,12 +241,21 @@ void App_Update(void)
     enum TaskState previous = task.state;
     uint8_t trials = task.d_trials;
     uint8_t locked = task.locked;
+    uint8_t scoring = task.scoring;
+    uint16_t sequence = task.sequence;
     int arrived;
     const char *command;
     char id_command[8];
 
+    control_heartbeat = now;
+    if (control_stalled) Contest_Fail(&task, FAULT_CONTROL, now);
     if (new_frame) frame = received;
-    if (CONTEST_MODE == 'J') {
+    if (CONTEST_MODE == 'M') {
+        if (now - last_imu >= 100) {
+            last_imu = now;
+            imu_ok = MPU6050_ReadData(&imu_data) == 0;
+        }
+    } else if (CONTEST_MODE == 'J') {
         if (!jog_started && now >= 1500u) {
             jog_started = jog_active = 1;
             MotorCtrl_Move(JOG_AXIS ? &pitch : &yaw, JOG_PULSES, JOG_PULSE_US);
@@ -170,20 +265,23 @@ void App_Update(void)
         last_update = now;
         arrived = yaw.position == yaw.goal && pitch.position == pitch.goal;
         Contest_Update(&task, new_frame ? &received : 0, now, arrived);
-        if (CONTEST_MODE != 'T') ApplyMotion();
+        if (CONTEST_MODE != 'T') ApplyMotion(now);
         if (previous != task.state)
-            printf("STATE,%lu,%s\r\n", (unsigned long)now, state_names[task.state]);
+            Log("STATE,%lu,%s,FAULT=%s\r\n", (unsigned long)now, state_names[task.state], fault_names[task.fault]);
         if (!locked && task.locked)
-            printf("LOCK,%lu,%u,%lu\r\n", (unsigned long)now, task.id, (unsigned long)task.lock_ms);
+            Log("LOCK,%lu,%u,%lu\r\n", (unsigned long)now, task.id, (unsigned long)task.lock_ms);
         if (trials != task.d_trials)
-            printf("RECAPTURE,%u,%u,%lu\r\n", task.d_trials, task.d_passes, (unsigned long)task.d_last_ms);
+            Log("RECAPTURE_EST,%u,%u,%lu\r\n", task.d_trials, task.d_passes, (unsigned long)task.d_last_ms);
+        if (!scoring && task.scoring) Log("SCORE_START,%lu\r\n", (unsigned long)now);
+        if (new_frame && task.have_sequence && sequence != task.sequence)
+            Log("OBS,%lu,%u,%d,%d,%u\r\n", (unsigned long)now, task.sequence, task.frame.x, task.frame.y, task.frame.ids);
         if (previous != task.state && Contest_Ended(&task))
-            printf("RESULT,%c,%u,%lu,%lu,%u,%u,%u\r\n", task.mode, task.ids,
+            Log("RESULT,%c,%u,%lu,%lu,%u,%u,%u,DROP=%lu\r\n", task.mode, task.ids,
                    (unsigned long)task.lock_ms, (unsigned long)task.hold_ms,
-                   task.left_view, task.d_passes, task.d_trials);
+                   task.left_view, task.d_passes, task.d_trials, (unsigned long)UART_LogDropped());
     }
 
-    if (now - last_command >= 200u) {
+    if (!VISION_ONE_WAY && CONTEST_MODE != 'M' && now - last_command >= 200u) {
         last_command = now;
         command = (MOTION_CALIBRATED || CONTEST_MODE == 'T') && CONTEST_MODE != 'J' ?
                   Contest_Command(&task) : "STOP\n";
@@ -191,12 +289,18 @@ void App_Update(void)
             sprintf(id_command, "ID,%u\n", task.id);
             command = id_command;
         }
-        K230_Send(command);
+        if (!K230_Send(command)) {
+            Contest_Fail(&task, FAULT_TX, now);
+            MotorCtrl_Stop(&yaw);
+            MotorCtrl_Stop(&pitch);
+        }
     }
     if (now - last_display >= 200u) {
         last_display = now;
         Show();
     }
+    UART_LogPoll();
+    DisplayStep(now);
 }
 
 void SystemClock_Config(void)

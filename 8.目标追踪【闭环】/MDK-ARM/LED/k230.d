@@ -2,6 +2,7 @@ led\k230.o: ..\HARDWARE\K230\k230.c
 led\k230.o: ..\HARDWARE\K230\k230.h
 led\k230.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdint.h
 led\k230.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\string.h
+led\k230.o: ..\HARDWARE\APP\contest_config.h
 led\k230.o: ../Core/Inc/usart.h
 led\k230.o: ../Core/Inc/main.h
 led\k230.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h

@@ -37,4 +37,8 @@ led\app.o: ..\HARDWARE\MORTOR\motor.h
 led\app.o: ..\HARDWARE\STABILIZER\stabilizer.h
 led\app.o: ..\HARDWARE\K230\k230.h
 led\app.o: ..\HARDWARE\APP\contest_config.h
+led\app.o: ..\HARDWARE\MPU6050\mpu6050.h
+led\app.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\math.h
 led\app.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdio.h
+led\app.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\stdarg.h
+led\app.o: E:\Legion\Documents\ARM\ARMCC\Bin\..\include\string.h

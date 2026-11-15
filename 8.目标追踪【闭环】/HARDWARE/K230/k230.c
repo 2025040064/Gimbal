@@ -1,18 +1,22 @@
 #include "k230.h"
 #include <string.h>
+#include "contest_config.h"
 
 int K230_Parse(const char *line, VisionFrame *out)
 {
-    int32_t v[10];
+    int32_t v[55];
+    int broadcast = strncmp(line, "ALL,", 4) == 0;
     unsigned n = 0;
     int32_t value;
     int negative;
     VisionFrame f;
 
+    if (broadcast) line += 4;
+
     do {
         negative = *line == '-';
         if (negative) ++line;
-        if (*line < '0' || *line > '9' || n == 10) return 0;
+        if (*line < '0' || *line > '9' || n == 55) return 0;
         value = 0;
         do {
             value = value * 10 + *line++ - '0';
@@ -22,6 +26,29 @@ int K230_Parse(const char *line, VisionFrame *out)
         if (!*line) break;
         if (*line++ != ',') return 0;
     } while (1);
+    if (broadcast) {
+        unsigned i;
+        if (n < 5 || v[0] < 1 || v[0] > 4096 || v[1] < 1 || v[1] > 4096 ||
+            v[2] < 0 || (v[3] != 0 && v[3] != 3) || v[4] < 0 || v[4] > 10 ||
+            n != 5 + 5 * (unsigned)v[4] || (v[3] == 3 && v[4] != 0)) return 0;
+        memset(&f, 0, sizeof(f));
+        f.width = v[0]; f.height = v[1]; f.sequence = v[2];
+        f.mode = v[3] == 3 ? VISION_FAULT : VISION_BROADCAST;
+        f.id = CONTEST_TARGET_ID;
+        f.x = f.y = f.box_w = f.box_h = -1;
+        for (i = 5; i < n; i += 5) {
+            int id = v[i];
+            if (id < 0 || id > 9 || (f.ids & (1 << id)) ||
+                v[i+1] < 0 || v[i+1] >= f.width || v[i+2] < 0 || v[i+2] >= f.height ||
+                v[i+3] < 1 || v[i+3] > f.width || v[i+4] < 1 || v[i+4] > f.height) return 0;
+            f.ids |= 1 << id;
+            if (id == CONTEST_TARGET_ID) {
+                f.x = v[i+1]; f.y = v[i+2]; f.box_w = v[i+3]; f.box_h = v[i+4];
+            }
+        }
+        *out = f;
+        return 1;
+    }
     if (n != 6 && n != 7 && n != 10) return 0;
     if (v[0] < 1 || v[0] > 4096 || v[1] < 1 || v[1] > 4096) return 0;
     if (v[2] != -1 || v[3] != -1 || v[4] != -1 || v[5] != -1) {
@@ -49,9 +76,10 @@ int K230_Parse(const char *line, VisionFrame *out)
 
 extern UART_HandleTypeDef huart3;
 static uint8_t byte_in;
-static char receive[80];
-static char mailbox[80];
-static uint8_t index_in, rx_state;
+static char receive[320];
+static char mailbox[320];
+static uint16_t index_in;
+static uint8_t rx_state;
 static volatile uint8_t ready;
 
 void K230_Init(void)
