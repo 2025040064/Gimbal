@@ -1,0 +1,5 @@
+path: 'F:/A_LIU_Astrspire/A_competition/Gimbal/训练数字/digits_dataset_v2'
+train: images/train
+val: 'F:/A_LIU_Astrspire/A_competition/Gimbal/训练数字/val_real.txt'
+nc: 10
+names: ['0','1','2','3','4','5','6','7','8','9']

@@ -1,0 +1,12 @@
+# Preserve binary and engineering source files byte-for-byte.
+*.3mf binary
+*.docx binary
+*.eprj2 binary
+*.eprj_backup binary
+*.kmodel binary
+*.onnx binary
+*.pt binary
+*.SLDPRT binary
+*.step binary
+*.stp binary
+*.zip binary
