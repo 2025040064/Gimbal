@@ -1,0 +1,54 @@
+{
+  "digits_dataset_v2": [
+    {
+      "name": "digits_dataset_v2_01.zip",
+      "files": 853,
+      "bytes": 46207678,
+      "sha256": "ed63cc496ea4a722130c055ae8259de971ba7bce8176413b4b23c028439e7237"
+    },
+    {
+      "name": "digits_dataset_v2_02.zip",
+      "files": 258,
+      "bytes": 46703080,
+      "sha256": "7c52a339424ac3de14ec9f3aa1a73af16962caef7cc49ba35af96790d20b27e2"
+    },
+    {
+      "name": "digits_dataset_v2_03.zip",
+      "files": 1288,
+      "bytes": 45676917,
+      "sha256": "43b3a86be70d53d6abcabe7f9b8f232f957cda8f0f6724610702f7d96c953b6e"
+    },
+    {
+      "name": "digits_dataset_v2_04.zip",
+      "files": 1285,
+      "bytes": 45719605,
+      "sha256": "cd377251139c04b317c8e7ddae2bb3cc1e28f8ebca0d4ef5cc8291783ea5cbc5"
+    },
+    {
+      "name": "digits_dataset_v2_05.zip",
+      "files": 1279,
+      "bytes": 45725083,
+      "sha256": "e1e7c18562ba9c72d92dfeb40a80e98492b2d776bcf5cbc9ccbe0f3277439ed2"
+    },
+    {
+      "name": "digits_dataset_v2_06.zip",
+      "files": 1300,
+      "bytes": 45701143,
+      "sha256": "893363cfe6a5ba6e816dc4bd0c49270fa7159102c046e6ba86c4e74e2690480b"
+    },
+    {
+      "name": "digits_dataset_v2_07.zip",
+      "files": 7978,
+      "bytes": 33999835,
+      "sha256": "35b9f7c466e7c9234b21a1b5ed8eb9b3efa7ba438755696d2e7c5415493fa0fc"
+    }
+  ],
+  "calibration_data": [
+    {
+      "name": "calibration_data_01.zip",
+      "files": 1000,
+      "bytes": 36297356,
+      "sha256": "0398a8d8420ac27fb23ab679527511a3e3726cd87db347944329c0ac3e57fa39"
+    }
+  ]
+}
