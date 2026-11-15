@@ -20,7 +20,20 @@ typedef struct {
     uint16_t sequence;
     uint8_t have_sequence;
     VisionFrame frame;
+    uint32_t last_target;
+    uint8_t seen_target;
 } Contest;
+
+typedef struct {
+    int32_t filtered_q8, speed;
+    uint32_t updated;
+    uint16_t sequence;
+    uint8_t initialized, moving;
+} TrackControl;
+
+void TrackControl_Reset(TrackControl *control);
+int32_t TrackControl_Update(TrackControl *control, int error, int half,
+                           uint16_t sequence, uint32_t now);
 
 void Contest_Init(Contest *task, char mode, uint8_t id, uint32_t now);
 void Contest_Update(Contest *task, const VisionFrame *frame, uint32_t now, int arrived);

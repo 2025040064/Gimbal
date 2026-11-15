@@ -4,12 +4,70 @@
 
 #define LINK_MS 500u
 #define OBS_MS 1100u
-#define CONTINUITY_MS 450u
+#define CONTINUITY_MS TRACK_OBSERVATION_MS
 #define ROWS (1u + (40u + SCAN_PITCH_STEP_DEG - 1u) / SCAN_PITCH_STEP_DEG)
 
 #if SCAN_PITCH_STEP_DEG < 1 || SCAN_PITCH_STEP_DEG > 20
 #error Invalid scan pitch step
 #endif
+#if TRACK_RESTART_PX <= TRACK_DEADZONE_PX || TRACK_RESTART_PX > CENTER_TOLERANCE_PX
+#error Invalid tracking hysteresis
+#endif
+#if TRACK_ACCEL_PPS2 < 1000 || TRACK_ACCEL_PPS2 > 20000 || TRACK_GAIN_PPS < 1 || TRACK_GAIN_PPS > 10000
+#error Invalid tracking gain or acceleration
+#endif
+
+void TrackControl_Reset(TrackControl *c)
+{
+    memset(c, 0, sizeof(*c));
+}
+
+int32_t TrackControl_Update(TrackControl *c, int error, int half,
+                           uint16_t sequence, uint32_t now)
+{
+    int32_t wanted, step, magnitude;
+    uint32_t dt;
+    if (half <= 0) { TrackControl_Reset(c); return 0; }
+    if (!c->initialized) {
+        c->initialized = 1;
+        c->sequence = sequence;
+        c->filtered_q8 = error * 256;
+        c->updated = now;
+    } else if (sequence != c->sequence) {
+        c->sequence = sequence;
+        /* Only new camera observations advance the filter. */
+        c->filtered_q8 += (error * 256 - c->filtered_q8) * 3 / 4;
+    }
+    dt = now - c->updated;
+    c->updated = now;
+    if (dt > 50u) dt = 50u;
+    magnitude = error < 0 ? -error : error;
+    /* Raw center/sign gates avoid filter lag driving across the center. */
+    if (magnitude <= TRACK_DEADZONE_PX) {
+        c->moving = 0;
+        c->speed = 0;
+        c->filtered_q8 = error * 256;
+        return 0;
+    }
+    if (!c->moving && magnitude <= TRACK_RESTART_PX) return 0;
+    c->moving = 1;
+    wanted = c->filtered_q8 / 256;
+    if ((wanted > 0 && error < 0) || (wanted < 0 && error > 0)) wanted = 0;
+    wanted = wanted * TRACK_GAIN_PPS / half;
+    if (wanted > 1000000 / TRACK_MIN_PULSE_US) wanted = 1000000 / TRACK_MIN_PULSE_US;
+    if (wanted < -1000000 / TRACK_MIN_PULSE_US) wanted = -1000000 / TRACK_MIN_PULSE_US;
+    /* A direction change must pass through zero for at least one update. */
+    if ((wanted < 0 && c->speed > 0) || (wanted > 0 && c->speed < 0)) wanted = 0;
+    step = (int32_t)dt * TRACK_ACCEL_PPS2 / 1000;
+    if (c->speed < wanted) {
+        c->speed += step;
+        if (c->speed > wanted) c->speed = wanted;
+    } else if (c->speed > wanted) {
+        c->speed -= step;
+        if (c->speed < wanted) c->speed = wanted;
+    }
+    return c->speed;
+}
 
 static void Enter(Contest *t, enum TaskState state, uint32_t now)
 {
@@ -120,7 +178,8 @@ void Contest_Update(Contest *t, const VisionFrame *f, uint32_t now, int arrived)
     }
     if (Matching(t, f)) {
         t->last_rx = now;
-        if (!t->have_sequence || f->sequence != t->sequence) {
+        if (!t->have_sequence || (f->sequence != t->sequence &&
+            (uint16_t)(f->sequence - t->sequence) < 32768u)) {
             t->have_sequence = 1;
             t->sequence = f->sequence;
             t->last_obs = now;
@@ -147,6 +206,13 @@ void Contest_Update(Contest *t, const VisionFrame *f, uint32_t now, int arrived)
     }
 
     target = t->frame.x >= 0;
+    if (fresh && target) { t->last_target = now; t->seen_target = 1; }
+    if (now - t->last_obs >= TRACK_OBSERVATION_MS) {
+        t->centered = 0;
+        t->center_since = now;
+        /* Keep the task deadline running, but never drive on stale data. */
+        target = 0;
+    }
     if (fresh) stable = UpdateCenter(t, now);
 
     if (t->mode == 'B') {
@@ -217,14 +283,15 @@ void Contest_Update(Contest *t, const VisionFrame *f, uint32_t now, int arrived)
         }
     }
 
+    if (now - t->last_obs >= TRACK_OBSERVATION_MS) return;
     if (target) {
         t->motion = MOTION_TRACK;
         t->scan_issued = 0;
         if (t->state == TASK_SEARCH) Enter(t, TASK_TRACK, now);
     } else {
+        if (t->seen_target && now - t->last_target < TRACK_LOSS_WAIT_MS) return;
         if (t->state == TASK_TRACK) {
             Enter(t, TASK_SEARCH, now);
-            return;
         }
         Scan(t, arrived);
     }

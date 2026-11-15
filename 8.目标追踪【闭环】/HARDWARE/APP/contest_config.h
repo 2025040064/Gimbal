@@ -18,6 +18,11 @@
 #define TRACK_MIN_PULSE_US 700
 #define CENTER_TOLERANCE_PX 12
 #define TRACK_DEADZONE_PX 8
+#define TRACK_RESTART_PX 12
+#define TRACK_OBSERVATION_MS 350u
+#define TRACK_LOSS_WAIT_MS 450u
+#define TRACK_ACCEL_PPS2 2400
+#define TRACK_GAIN_PPS 1200 /* speed at one half-frame error, before saturation */
 
 /* In J mode, verify one axis at a time, starting at the manual zero. */
 #define JOG_AXIS 0

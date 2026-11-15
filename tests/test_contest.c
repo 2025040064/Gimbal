@@ -1,6 +1,7 @@
 #include "stabilizer.h"
 #include <assert.h>
 #include <stdio.h>
+#include "contest_config.h"
 
 static uint16_t seq;
 
@@ -128,14 +129,97 @@ static void test_reacquire(void)
     assert(t.state == TASK_DONE);
 }
 
+static void test_tracking_control(void)
+{
+    TrackControl c;
+    uint32_t now;
+    int32_t speed = 0, previous, filtered;
+    int crossed_zero = 0;
+    TrackControl_Reset(&c);
+    for (now = 0; now <= 600; now += 10) {
+        previous = speed;
+        speed = TrackControl_Update(&c, 320, 320, 1, now);
+        assert(speed >= previous && speed - previous <= TRACK_ACCEL_PPS2 / 100);
+        assert(speed <= 1000000 / TRACK_MIN_PULSE_US);
+    }
+    for (; now <= 1800; now += 10) {
+        previous = speed;
+        speed = TrackControl_Update(&c, -320, 320, 2, now);
+        if (!speed) crossed_zero = 1;
+        if (speed < 0) assert(crossed_zero);
+        assert(previous - speed <= TRACK_ACCEL_PPS2 / 100);
+    }
+    assert(speed < 0);
+    assert(TrackControl_Update(&c, 7, 320, 3, now) == 0);
+    assert(TrackControl_Update(&c, 11, 320, 4, now + 10) == 0);
+    assert(TrackControl_Update(&c, -11, 320, 5, now + 20) == 0);
+    assert(TrackControl_Update(&c, 20, 320, 6, now + 30) > 0);
+    filtered = c.filtered_q8;
+    TrackControl_Update(&c, 20, 320, 6, now + 40);
+    assert(c.filtered_q8 == filtered);
+    TrackControl_Reset(&c);
+    TrackControl_Update(&c, 320, 320, 65535, 0xfffffff0u);
+    assert(TrackControl_Update(&c, 320, 320, 0, 4) == 48);
+    assert(TrackControl_Update(&c, 320, 320, 0, 1004) == 168);
+    assert(TrackControl_Update(&c, 20, 0, 1, 1014) == 0);
+}
+
+static void test_sequence_and_recovery(void)
+{
+    Contest t;
+    VisionFrame f = frame(VISION_TRACK, 1, 1);
+    start(&t, 'C', 0);
+    f.sequence = 65535;
+    Contest_Update(&t, &f, 0, 0);
+    f.sequence = 0;
+    Contest_Update(&t, &f, 200, 0);
+    assert(t.sequence == 0 && t.last_obs == 200);
+    f.sequence = 65535;
+    f.x = 100;
+    Contest_Update(&t, &f, 300, 0);
+    assert(t.frame.x == 320 && t.last_obs == 200);
+    Contest_Update(&t, 0, 550, 0);
+    assert(t.motion == MOTION_STOP && !t.centered);
+    f.sequence = 1;
+    f.x = 320;
+    Contest_Update(&t, &f, 600, 0);
+    assert(t.motion == MOTION_TRACK && !t.locked);
+    f.sequence = 2;
+    f.x = f.y = f.box_w = f.box_h = -1;
+    Contest_Update(&t, &f, 700, 0);
+    assert(t.motion == MOTION_STOP);
+    f.sequence = 3;
+    f.x = 320; f.y = 240; f.box_w = 40; f.box_h = 50;
+    Contest_Update(&t, &f, 800, 0);
+    assert(t.motion == MOTION_TRACK && !t.locked);
+}
+
 int main(void)
 {
+    test_tracking_control();
+    test_sequence_and_recovery();
+    /* A heartbeat must not keep driving toward an old coordinate. */
+    {
+        Contest t;
+        VisionFrame f = frame(VISION_TRACK, 1, 1);
+        start(&t, 'C', 0);
+        Contest_Update(&t, &f, 0, 0);
+        Contest_Update(&t, &f, 350, 0);
+        assert(t.motion == MOTION_STOP);
+        assert(!t.centered);
+        input(&t, 400, 1);
+        input(&t, 500, 0);
+        input(&t, 600, 0);
+        assert(t.motion == MOTION_STOP);
+        input(&t, 850, 0);
+        assert(t.motion == MOTION_SCAN);
+    }
     test_protocol();
     test_scan();
     test_lock();
     test_identity_and_timeouts();
     test_moving();
     test_reacquire();
-    puts("6 contest scenario groups passed");
+    puts("9 contest/tracking scenario groups passed");
     return 0;
 }

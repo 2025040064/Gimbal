@@ -25,6 +25,7 @@
 
 TIM_HandleTypeDef htim2;
 static MotorCtrl_TypeDef yaw, pitch;
+static TrackControl yaw_control, pitch_control;
 static Contest task;
 static VisionFrame frame;
 static uint32_t last_command, last_display, last_update;
@@ -62,29 +63,34 @@ static int32_t DegreesToPulses(int degrees, int32_t pulses_per_turn)
     return (int32_t)degrees * pulses_per_turn / 360;
 }
 
-static void TrackAxis(MotorCtrl_TypeDef *motor, int error, int half, int32_t limit)
+static void TrackAxis(MotorCtrl_TypeDef *motor, TrackControl *control,
+                      int error, int half, int32_t limit, uint32_t now)
 {
-    int magnitude = error < 0 ? -error : error;
+    int32_t speed = TrackControl_Update(control, error, half, task.sequence, now);
+    int32_t magnitude = speed < 0 ? -speed : speed;
     uint16_t period;
-    uint32_t remaining;
-    if (magnitude <= TRACK_DEADZONE_PX || half == 0) {
+    if (magnitude < 16 || (speed > 0 && motor->position >= limit) ||
+        (speed < 0 && motor->position <= -limit)) {
         MotorCtrl_Stop(motor);
+        if (magnitude >= 16) TrackControl_Reset(control);
         return;
     }
-    remaining = magnitude >= half ? 0u : (uint32_t)(half - magnitude) * 100u / half;
-    period = TRACK_MIN_PULSE_US +
-             (5500u - TRACK_MIN_PULSE_US) * remaining * remaining / 10000u;
-    MotorCtrl_Move(motor, error > 0 ? limit : -limit, period);
+    period = (uint16_t)(1000000u / (uint32_t)magnitude);
+    MotorCtrl_Move(motor, speed > 0 ? limit : -limit, period);
 }
 
-static void ApplyMotion(void)
+static void ApplyMotion(uint32_t now)
 {
+    if (task.motion != MOTION_TRACK) {
+        TrackControl_Reset(&yaw_control);
+        TrackControl_Reset(&pitch_control);
+    }
     if (task.motion == MOTION_SCAN) {
         MotorCtrl_Move(&yaw, DegreesToPulses(task.yaw_deg, YAW_PULSES_PER_TURN), SCAN_PULSE_US);
         MotorCtrl_Move(&pitch, DegreesToPulses(task.pitch_deg, PITCH_PULSES_PER_TURN), SCAN_PULSE_US);
     } else if (task.motion == MOTION_TRACK) {
-        TrackAxis(&yaw, task.frame.x - task.frame.width / 2, task.frame.width / 2, yaw_limit);
-        TrackAxis(&pitch, task.frame.y - task.frame.height / 2, task.frame.height / 2, pitch_limit);
+        TrackAxis(&yaw, &yaw_control, task.frame.x - task.frame.width / 2, task.frame.width / 2, yaw_limit, now);
+        TrackAxis(&pitch, &pitch_control, task.frame.y - task.frame.height / 2, task.frame.height / 2, pitch_limit, now);
     } else {
         MotorCtrl_Stop(&yaw);
         MotorCtrl_Stop(&pitch);
@@ -170,7 +176,7 @@ void App_Update(void)
         last_update = now;
         arrived = yaw.position == yaw.goal && pitch.position == pitch.goal;
         Contest_Update(&task, new_frame ? &received : 0, now, arrived);
-        if (CONTEST_MODE != 'T') ApplyMotion();
+        if (CONTEST_MODE != 'T') ApplyMotion(now);
         if (previous != task.state)
             printf("STATE,%lu,%s\r\n", (unsigned long)now, state_names[task.state]);
         if (!locked && task.locked)
