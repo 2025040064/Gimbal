@@ -1,145 +1,133 @@
 #include "k230.h"
-#include "usart.h"
-#include <stdlib.h>
 #include <string.h>
+#include "contest_config.h"
+
+int K230_Parse(const char *line, VisionFrame *out)
+{
+    int32_t v[55];
+    int broadcast = strncmp(line, "ALL,", 4) == 0;
+    unsigned n = 0;
+    int32_t value;
+    int negative;
+    VisionFrame f;
+
+    if (broadcast) line += 4;
+
+    do {
+        negative = *line == '-';
+        if (negative) ++line;
+        if (*line < '0' || *line > '9' || n == 55) return 0;
+        value = 0;
+        do {
+            value = value * 10 + *line++ - '0';
+            if (value > 65535) return 0;
+        } while (*line >= '0' && *line <= '9');
+        v[n++] = negative ? -value : value;
+        if (!*line) break;
+        if (*line++ != ',') return 0;
+    } while (1);
+    if (broadcast) {
+        unsigned i;
+        if (n < 5 || v[0] < 1 || v[0] > 4096 || v[1] < 1 || v[1] > 4096 ||
+            v[2] < 0 || (v[3] != 0 && v[3] != 3) || v[4] < 0 || v[4] > 10 ||
+            n != 5 + 5 * (unsigned)v[4] || (v[3] == 3 && v[4] != 0)) return 0;
+        memset(&f, 0, sizeof(f));
+        f.width = v[0]; f.height = v[1]; f.sequence = v[2];
+        f.mode = v[3] == 3 ? VISION_FAULT : VISION_BROADCAST;
+        f.id = CONTEST_TARGET_ID;
+        f.x = f.y = f.box_w = f.box_h = -1;
+        for (i = 5; i < n; i += 5) {
+            int id = v[i];
+            if (id < 0 || id > 9 || (f.ids & (1 << id)) ||
+                v[i+1] < 0 || v[i+1] >= f.width || v[i+2] < 0 || v[i+2] >= f.height ||
+                v[i+3] < 1 || v[i+3] > f.width || v[i+4] < 1 || v[i+4] > f.height) return 0;
+            f.ids |= 1 << id;
+            if (id == CONTEST_TARGET_ID) {
+                f.x = v[i+1]; f.y = v[i+2]; f.box_w = v[i+3]; f.box_h = v[i+4];
+            }
+        }
+        *out = f;
+        return 1;
+    }
+    if (n != 6 && n != 7 && n != 10) return 0;
+    if (v[0] < 1 || v[0] > 4096 || v[1] < 1 || v[1] > 4096) return 0;
+    if (v[2] != -1 || v[3] != -1 || v[4] != -1 || v[5] != -1) {
+        if (v[2] < 0 || v[2] >= v[0] || v[3] < 0 || v[3] >= v[1] ||
+            v[4] < 1 || v[4] > v[0] || v[5] < 1 || v[5] > v[1]) return 0;
+    }
+    if (n >= 7 && (v[6] < 0 || v[6] > 2047)) return 0;
+    if (n == 10) {
+        if (v[7] < VISION_IDLE || v[7] > VISION_FAULT || v[9] < 0) return 0;
+        if (v[7] == VISION_TRACK) {
+            if (v[8] < 0 || v[8] > 9 || (v[2] >= 0 && !(v[6] & (1u << v[8])))) return 0;
+        } else if (v[8] != -1 || v[2] != -1) return 0;
+    }
+    f.width = v[0]; f.height = v[1]; f.x = v[2]; f.y = v[3];
+    f.box_w = v[4]; f.box_h = v[5]; f.ids = n >= 7 ? v[6] : 0;
+    f.mode = n == 10 ? v[7] : VISION_LEGACY;
+    f.id = n == 10 ? v[8] : -1;
+    f.sequence = n == 10 ? v[9] : 0;
+    *out = f;
+    return 1;
+}
+
+#ifndef CONTEST_HOST_TEST
+#include "usart.h"
 
 extern UART_HandleTypeDef huart3;
-extern void MX_USART3_UART_Init(void);
-
-#define RX_BUF_SIZE          64
-#define TARGET_FRESH_MS     150U
-#define SCREEN_WIDTH        640
-#define SCREEN_HEIGHT       480
-
-enum RxState { WAIT_AA, WAIT_55, READ_PAYLOAD, WAIT_LF };
-
-static uint8_t rx_byte;
-static char rx_data[RX_BUF_SIZE];
-static uint8_t rx_index;
-static enum RxState rx_state;
-static char pending_data[RX_BUF_SIZE];
-static volatile uint8_t pending_length;
-static volatile uint32_t pending_tick;
-
-int16_t target_x = -1;
-int16_t target_y = -1;
-int16_t target_w = -1;
-int16_t target_h = -1;
-int16_t screen_w = SCREEN_WIDTH;
-int16_t screen_h = SCREEN_HEIGHT;
-
-static volatile uint8_t target_valid;
-static volatile uint32_t last_target_tick;
+static uint8_t byte_in;
+static char receive[320];
+static char mailbox[320];
+static uint16_t index_in;
+static uint8_t rx_state;
+static volatile uint8_t ready;
 
 void K230_Init(void)
 {
     MX_USART3_UART_Init();
-    HAL_UART_Receive_IT(&huart3, &rx_byte, 1);
+    HAL_UART_Receive_IT(&huart3, &byte_in, 1);
 }
 
-uint8_t K230_TargetIsFresh(void)
+int K230_Send(const char *command)
 {
-    return target_valid && HAL_GetTick() - last_target_tick < TARGET_FRESH_MS;
+    return HAL_UART_Transmit(&huart3, (uint8_t *)command, strlen(command), 10) == HAL_OK;
 }
 
-static uint8_t Parse_K230_Data(const char *data)
+int K230_Read(VisionFrame *out)
 {
-    long fields[6];
-    for (uint8_t i = 0; i < 6; i++) {
-        char *end;
-        char separator = (i < 5) ? ',' : '\0';
-        fields[i] = strtol(data, &end, 10);
-        if (end == data || *end != separator) return 0;
-        data = end + 1;
-    }
-
-    if (fields[0] != SCREEN_WIDTH || fields[1] != SCREEN_HEIGHT) return 0;
-
-    if (fields[2] == -1 && fields[3] == -1 && fields[4] == -1 && fields[5] == -1) {
-        target_valid = 0;
-        target_x = target_y = target_w = target_h = -1;
-        return 0;
-    }
-
-    if (fields[2] < 0 || fields[2] >= SCREEN_WIDTH ||
-        fields[3] < 0 || fields[3] >= SCREEN_HEIGHT ||
-        fields[4] <= 0 || fields[4] > SCREEN_WIDTH ||
-        fields[5] <= 0 || fields[5] > SCREEN_HEIGHT) return 0;
-
-    target_x = (int16_t)fields[2];
-    target_y = (int16_t)fields[3];
-    target_w = (int16_t)fields[4];
-    target_h = (int16_t)fields[5];
-    return 1;
+    int parsed;
+    if (!ready) return 0;
+    parsed = K230_Parse(mailbox, out);
+    ready = 0;
+    return parsed;
 }
 
-uint8_t K230_Process(void)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uart)
 {
-    uint8_t was_valid = target_valid;
-    if (pending_length != 0) {
-        char data[RX_BUF_SIZE];
-        // Take a snapshot of the latest complete frame before parsing in the main loop.
-        uint32_t irq_state = __get_PRIMASK();
-        __disable_irq();
-        memcpy(data, pending_data, pending_length);
-        uint32_t received_at = pending_tick;
-        pending_length = 0;
-        __set_PRIMASK(irq_state);
-
-        if (HAL_GetTick() - received_at < TARGET_FRESH_MS && Parse_K230_Data(data)) {
-            last_target_tick = received_at;
-            target_valid = 1;
-            return 1;
+    if (uart->Instance != USART3) return;
+    if (byte_in == 0xAA) rx_state = 1;
+    else if (rx_state == 1) {
+        rx_state = byte_in == 0x55 ? 2 : 0;
+        index_in = 0;
+    } else if (rx_state == 2) {
+        if (byte_in == '\r') rx_state = 3;
+        else if (byte_in < 32 || byte_in > 126 || index_in == sizeof(receive) - 1) rx_state = 0;
+        else receive[index_in++] = byte_in;
+    } else if (rx_state == 3) {
+        if (byte_in == '\n' && !ready) {
+            receive[index_in] = 0;
+            memcpy(mailbox, receive, index_in + 1u);
+            ready = 1;
         }
+        rx_state = 0;
     }
-
-    if (!K230_TargetIsFresh()) target_valid = 0;
-    return was_valid && !target_valid;
+    HAL_UART_Receive_IT(uart, &byte_in, 1);
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *uart)
 {
-    if (huart->Instance != USART3 || huart->ErrorCode != HAL_UART_ERROR_NONE) return;
-
-    uint8_t byte = rx_byte;
-    if (byte == 0xAA) {
-        rx_state = WAIT_55;
-    } else {
-        switch (rx_state) {
-        case WAIT_55:
-            rx_state = (byte == 0x55) ? READ_PAYLOAD : WAIT_AA;
-            rx_index = 0;
-            break;
-        case READ_PAYLOAD:
-            if (byte == '\r') {
-                rx_state = WAIT_LF;
-            } else if (((byte >= '0' && byte <= '9') || byte == '-' || byte == ',')
-                       && rx_index < RX_BUF_SIZE - 1) {
-                rx_data[rx_index++] = (char)byte;
-            } else {
-                rx_state = WAIT_AA;
-            }
-            break;
-        case WAIT_LF:
-            if (byte == '\n') {
-                rx_data[rx_index] = '\0';
-                memcpy(pending_data, rx_data, rx_index + 1);
-                pending_tick = HAL_GetTick();
-                pending_length = rx_index + 1;
-            }
-            rx_state = WAIT_AA;
-            break;
-        default:
-            break;
-        }
-    }
-    HAL_UART_Receive_IT(huart, &rx_byte, 1);
+    if (uart->Instance != USART3) return;
+    rx_state = 0;
+    if (uart->RxState == HAL_UART_STATE_READY) HAL_UART_Receive_IT(uart, &byte_in, 1);
 }
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART3) {
-        rx_state = WAIT_AA;
-        HAL_UART_Receive_IT(huart, &rx_byte, 1);
-    }
-}
+#endif
